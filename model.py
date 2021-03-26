@@ -7,8 +7,6 @@ from transformers.models.bert.modeling_bert import BertSelfAttention
 # program counter
 # 查data对不对
 # 看<5的多不多，不多直接删除？
-# notes: scatter, gather
-# pooling 的时候也是5个一起做
 # gradient clipping 1
 # AdamW, scheduler
 # most recent history + position embedding
@@ -72,12 +70,17 @@ class Attention_pooling(torch.nn.Module):
         self.softmax = nn.Softmax(dim = -2)
 
         self.projection = torch.nn.Linear(dim, 1, bias = False)
+    
+    def masking(self, x, attention_mask):
+        mask = ((1 - attention_mask) * -10000.0).to(dtype=next(self.parameters()).dtype)
+        return x + mask.view(mask.shape[0], mask.shape[1], 1)
 
-    def forward(self, x):
+    def forward(self, x, attention_mask):
         # input shape: (batch_size, his_size, emb_size)
+        # attention_mask shape: batch_size, his_size
 
         # weights = nn.Softmax(self.query(torch.tanh(self.projection(x))), dim=-1) # the softmax dimension problem
-        weights = self.softmax(self.projection(x)) # batch_size, his_size
+        weights = self.softmax(self.masking(self.projection(x), attention_mask)) # batch_size, his_size, 1
 
         return torch.sum(torch.mul(x, weights), dim=-2, keepdim=False) # batch, emb_size
 
@@ -89,6 +92,10 @@ class NewsRec(torch.nn.Module):
         self.news_encoder = AutoModel.from_pretrained(ht_model)
         self.news_MHA = MySelfAttention(self_attention_config)
         self.news_pooling = Attention_pooling(self.news_encoder.config.hidden_size)
+    
+    def masking(self, x, candidate_mask):
+        mask = ((1 - candidate_mask) * -10000.0).to(dtype=next(self.parameters()).dtype)
+        return x + mask
 
     def forward(self, x, batch_size):
         #print(x.keys())
@@ -103,17 +110,17 @@ class NewsRec(torch.nn.Module):
         # impr_labels = labels[impr_indices].view(batch_size, -1)
         impr_reprs = news_reprs[impr_indices].view(batch_size, -1, news_reprs.shape[-1])
 
-        self_attended_his_reprs = self.news_MHA(his_reprs)[0]
+        self_attended_his_reprs = self.news_MHA(his_reprs, history_mask)[0]
 
-        user_reprs = self.news_pooling(self_attended_his_reprs)
+        user_reprs = self.news_pooling(self_attended_his_reprs, history_mask)
 
         # print(user_reprs.shape, impr_reprs.shape) # checked. shapes are correct
 
-        scores = torch.bmm(impr_reprs, user_reprs.view(user_reprs.shape[0], user_reprs.shape[1], 1))
+        scores = torch.bmm(impr_reprs, user_reprs.view(user_reprs.shape[0], user_reprs.shape[1], 1)).squeeze(-1)
 
         # print(user_reprs[1], impr_reprs[1][1], scores) # checked. bmm is correct.
 
-        return scores
+        return self.masking(scores, candidate_mask)
 
 
 if __name__ == '__main__':
@@ -121,37 +128,46 @@ if __name__ == '__main__':
     # position embedding related HPs are useless.
     self_attention_hyperparameters = {'num_attention_heads' : 2, 'hidden_size' : 768, 'attention_probs_dropout_prob': 0.2, 'max_position_embeddings': 4, 'is_decoder': False, 'position_embedding_type' : None}
     BATCH_SIZE = 2
+    MAX_EPOCHS = 5
 
     # get data
     from data_loading import MINDDataset
     from torch.utils.data import RandomSampler
     from torch.utils.data import DataLoader
     from utils import Config
-    train = MINDDataset('news.tsv', 'behaviors.tsv',batch_size=BATCH_SIZE)
+    train = MINDDataset('train/news.tsv', 'train/behaviors.tsv',batch_size=BATCH_SIZE)
     train.load_data()
-    train_sampler = RandomSampler(my_ds)
+    train_sampler = RandomSampler(train)
     train_dataloader = DataLoader(
-    my_ds,
+    train,
     sampler=train_sampler,
-    batch_size=my_ds.batch_size,
-    collate_fn=my_ds.collate_fn
+    batch_size=train.batch_size,
+    collate_fn=train.collate_fn
     )
 
-    valid = MINDDataset('news.tsv', 'behaviors.tsv',batch_size=BATCH_SIZE)
-    train.load_data()
-    train_sampler = RandomSampler(my_ds)
-    train_dataloader = DataLoader(
-    my_ds,
-    sampler=train_sampler,
-    batch_size=my_ds.batch_size,
-    collate_fn=my_ds.collate_fn
+    valid = MINDDataset('valid/news.tsv', 'valid/behaviors.tsv',batch_size=BATCH_SIZE)
+    valid.load_data()
+    valid_sampler = RandomSampler(valid)
+    valid_dataloader = DataLoader(
+    valid,
+    sampler=valid_sampler,
+    batch_size=valid.batch_size,
+    collate_fn=valid.collate_fn
     )
 
     # build the model
     self_attention_config = Config(self_attention_hyperparameters)
     model = NewsRec(self_attention_config)
 
+
     # training
+    for epoch in range(MAX_EPOCHS):
+        #TODO: early stopping and checkpointing
+        #TODO: shuffling
+          TODO: inside-impression shuffling
+
+        for batch_id, data_batch in enumerate(train_dataloader):
+            pass
 
 
 
@@ -165,6 +181,7 @@ if __name__ == '__main__':
     # }
 
     batch = next(iter(train_dataloader))
+    
     model(batch, BATCH_SIZE)
     # print(model(next(iter(train_dataloader)), BATCH_SIZE).shape)
 
