@@ -3,3 +3,5 @@ valid/
 transformers/
 utils/
 *.pt
+*.sbatch
+*.out
