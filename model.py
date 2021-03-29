@@ -160,7 +160,7 @@ if __name__ == '__main__':
 
     # build the model
     self_attention_config = Config(self_attention_hyperparameters)
-    model = NewsRec(self_attention_config)
+    model = NewsRec(self_attention_config).to(device)
 
 
 
@@ -179,12 +179,10 @@ if __name__ == '__main__':
     checkpointing_freq = 10
 
     try:
-        load_checkpoint(model, optimizer)
+        load_checkpoint(model, optimizer, device)
         print('checkpoint loaded')
     except:
         print('failed to load any checkpoints.')
-    
-    model.to(device)
 
     for epoch in range(MAX_EPOCHS):
         #TODO: early stopping and checkpointing
