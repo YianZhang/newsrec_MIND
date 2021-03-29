@@ -20,5 +20,5 @@ def load_checkpoint(model, optimizer, path='model.pt'):
   optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
   epoch = checkpoint['epoch']
   loss = checkpoint['loss']
-  print('checkpoint loaded, epoch: {}, loss: {}', epoch, loss)
+  print('checkpoint loaded, epoch: {}, loss: {}'.format(epoch, loss))
   return epoch, loss
