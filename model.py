@@ -124,17 +124,16 @@ class NewsRec(torch.nn.Module):
 
 
 if __name__ == '__main__':
-    # HPs
+    # model HPs
     # position embedding related HPs are useless.
-    self_attention_hyperparameters = {'num_attention_heads' : 2, 'hidden_size' : 768, 'attention_probs_dropout_prob': 0.2, 'max_position_embeddings': 4, 'is_decoder': False, 'position_embedding_type' : None}
-    BATCH_SIZE = 2
-    MAX_EPOCHS = 5
+    BATCH_SIZE = 16
+    self_attention_hyperparameters = {'num_attention_heads' : 1, 'hidden_size' : 768, 'attention_probs_dropout_prob': 0.2, 'max_position_embeddings': 4, 'is_decoder': False, 'position_embedding_type' : None}
 
     # get data
     from data_loading import MINDDataset
     from torch.utils.data import RandomSampler
     from torch.utils.data import DataLoader
-    from utils import Config
+    from utils import Config, save_checkpoint, load_checkpoint
     train = MINDDataset('train/news.tsv', 'train/behaviors.tsv',batch_size=BATCH_SIZE)
     train.load_data()
     train_sampler = RandomSampler(train)
@@ -160,14 +159,59 @@ if __name__ == '__main__':
     model = NewsRec(self_attention_config)
 
 
+
     # training
+    # BERT parameters:
+    # batch size: 16, 32
+    # lr(Adam): 5e-5, 3e-5, 2e-5
+    # number of epochs: 2,3,4
+    # dropout: 0.1
+
+    MAX_EPOCHS = 5
+    lr = 3e-5
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    criterion = torch.nn.CrossEntropyLoss()
+    labels = torch.tensor([0] * BATCH_SIZE)
+    checkpointing_freq = 10
+
+    try:
+        load_checkpoint(model, optimizer)
+        print('checkpoint loaded')
+    except:
+        print('failed to load any checkpoints.')
+
     for epoch in range(MAX_EPOCHS):
         #TODO: early stopping and checkpointing
         #TODO: shuffling
-          TODO: inside-impression shuffling
+         # transformers AdamW (opt), scheduler (get linear schedule with warmup from transformers)
+            # cross-entropy by batch?
+            # clipping
+            # shuffling will slow things down
+            # early stopping using metrics
+            # lr, batch_size, max_epochs, 
+            # bert config HPs
 
         for batch_id, data_batch in enumerate(train_dataloader):
-            pass
+            model.train()
+
+            # impr_indices = torch.nonzero(data_batch["labels"] != -1, as_tuple = True)[0] # must retrieve the labels first, because it is deleted by the forward func
+            # impr_labels = data_batch["labels"][impr_indices].view(BATCH_SIZE, -1)
+            y_pred = model(data_batch, BATCH_SIZE)
+            loss = criterion(y_pred, labels)
+            print(loss.item())
+
+            optimizer.zero_grad()
+
+            loss.backward()
+
+            optimizer.step()
+
+            if batch_id%checkpointing_freq == 0:
+                save_checkpoint(epoch, model, optimizer, loss.item())
+            
+
+            
+           
 
 
 
@@ -180,8 +224,8 @@ if __name__ == '__main__':
     #     'intermediate_dimension' : 200,
     # }
 
-    batch = next(iter(train_dataloader))
+    # batch = next(iter(train_dataloader))
     
-    model(batch, BATCH_SIZE)
+    # model(batch, BATCH_SIZE)
     # print(model(next(iter(train_dataloader)), BATCH_SIZE).shape)
 

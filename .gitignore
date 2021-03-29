@@ -2,3 +2,4 @@ train/
 valid/
 transformers/
 utils/
+*.pt
