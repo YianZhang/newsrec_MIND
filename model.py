@@ -202,7 +202,7 @@ if __name__ == '__main__':
             data_batch = data_batch.to(device)
             y_pred = model(data_batch, BATCH_SIZE)
             loss = criterion(y_pred, labels)
-            print(loss.item())
+            print(loss.item(), flush = True)
 
             optimizer.zero_grad()
 
