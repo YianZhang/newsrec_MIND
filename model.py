@@ -124,6 +124,10 @@ class NewsRec(torch.nn.Module):
 
 
 if __name__ == '__main__':
+
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    print('Device: ', device)
+
     # model HPs
     # position embedding related HPs are useless.
     BATCH_SIZE = 16
@@ -171,7 +175,7 @@ if __name__ == '__main__':
     lr = 3e-5
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     criterion = torch.nn.CrossEntropyLoss()
-    labels = torch.tensor([0] * BATCH_SIZE)
+    labels = torch.tensor([0] * BATCH_SIZE).to(device)
     checkpointing_freq = 10
 
     try:
@@ -179,6 +183,8 @@ if __name__ == '__main__':
         print('checkpoint loaded')
     except:
         print('failed to load any checkpoints.')
+    
+    model.to(device)
 
     for epoch in range(MAX_EPOCHS):
         #TODO: early stopping and checkpointing
@@ -193,9 +199,9 @@ if __name__ == '__main__':
 
         for batch_id, data_batch in enumerate(train_dataloader):
             model.train()
-
             # impr_indices = torch.nonzero(data_batch["labels"] != -1, as_tuple = True)[0] # must retrieve the labels first, because it is deleted by the forward func
             # impr_labels = data_batch["labels"][impr_indices].view(BATCH_SIZE, -1)
+            data_batch = data_batch.to(device)
             y_pred = model(data_batch, BATCH_SIZE)
             loss = criterion(y_pred, labels)
             print(loss.item())
