@@ -194,7 +194,8 @@ if __name__ == '__main__':
             # early stopping using metrics
             # lr, batch_size, max_epochs, 
             # bert config HPs
-
+        total_loss = 0
+        loss_his = []
         for batch_id, data_batch in enumerate(train_dataloader):
             model.train()
             # impr_indices = torch.nonzero(data_batch["labels"] != -1, as_tuple = True)[0] # must retrieve the labels first, because it is deleted by the forward func
@@ -202,7 +203,7 @@ if __name__ == '__main__':
             data_batch = data_batch.to(device)
             y_pred = model(data_batch, BATCH_SIZE)
             loss = criterion(y_pred, labels)
-            print(loss.item(), flush = True)
+            total_loss += loss.item()
 
             optimizer.zero_grad()
 
@@ -211,7 +212,14 @@ if __name__ == '__main__':
             optimizer.step()
 
             if batch_id%checkpointing_freq == 0:
+                print(total_loss/checkpointing_freq, flush = True)
+                loss_his.append(total_loss/checkpointing_freq)
+                total_loss = 0
                 save_checkpoint(epoch, model, optimizer, loss.item())
+        
+        print('epoch loss: ', sum(loss_his)/len(loss_his))
+            
+        
             
 
             
