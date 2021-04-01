@@ -5,3 +5,4 @@ utils/
 *.pt
 *.sbatch
 *.out
+__pycache__/
