@@ -131,7 +131,7 @@ if __name__ == '__main__':
   from torch.utils.data import RandomSampler
   from torch.utils.data import DataLoader
 
-  my_ds = MINDDataset('news.tsv', 'behaviors.tsv',npratio=2, his_size=2, batch_size=2)
+  my_ds = MINDDataset('train/news.tsv', 'train/behaviors.tsv',npratio=2, his_size=2, batch_size=4)
   my_ds.load_data()
 
   train_sampler = RandomSampler(my_ds)
