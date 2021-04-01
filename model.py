@@ -97,8 +97,9 @@ class NewsRec(torch.nn.Module):
         mask = ((1 - candidate_mask) * -10000.0).to(dtype=next(self.parameters()).dtype)
         return x + mask
 
-    def forward(self, x, batch_size):
+    def forward(self, x):
         #print(x.keys())
+        batch_size = x['candidate_mask'].shape[0]
         labels, candidate_mask, history_mask = x['labels'], x['candidate_mask'], x['history_mask']
         del x['labels']; del x['candidate_mask']; del x['history_mask']
 
@@ -176,7 +177,7 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     criterion = torch.nn.CrossEntropyLoss()
     labels = torch.tensor([0] * BATCH_SIZE).to(device)
-    checkpointing_freq = 10
+    checkpointing_freq = 50
 
     try:
         load_checkpoint(model, optimizer, device)
@@ -184,6 +185,7 @@ if __name__ == '__main__':
     except:
         print('failed to load any checkpoints.')
 
+    # TODO: last batch padding
     for epoch in range(MAX_EPOCHS):
         #TODO: early stopping and checkpointing
         #TODO: shuffling
@@ -201,7 +203,7 @@ if __name__ == '__main__':
             # impr_indices = torch.nonzero(data_batch["labels"] != -1, as_tuple = True)[0] # must retrieve the labels first, because it is deleted by the forward func
             # impr_labels = data_batch["labels"][impr_indices].view(BATCH_SIZE, -1)
             data_batch = data_batch.to(device)
-            y_pred = model(data_batch, BATCH_SIZE)
+            y_pred = model(data_batch)
             loss = criterion(y_pred, labels)
             total_loss += loss.item()
 
