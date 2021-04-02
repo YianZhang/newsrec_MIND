@@ -3,6 +3,7 @@ import torch
 from torch import nn
 from transformers import AutoModel
 from transformers.models.bert.modeling_bert import BertSelfAttention
+from transformers import get_linear_schedule_with_warmup
 
 # program counter
 # 查data对不对
@@ -174,7 +175,10 @@ if __name__ == '__main__':
 
     MAX_EPOCHS = 5
     lr = 3e-5
+    num_warmup_steps = 10000
+    num_train_steps = MAX_EPOCHS*(len(train)//BATCH_SIZE) # to be further checked
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=0.01)
+    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps, num_train_steps)
     criterion = torch.nn.CrossEntropyLoss()
     labels = torch.tensor([0] * BATCH_SIZE).to(device)
     checkpointing_freq = 50
@@ -213,6 +217,7 @@ if __name__ == '__main__':
             loss.backward()
 
             optimizer.step()
+            scheduler.step()
 
             if batch_id%checkpointing_freq == 0:
                 print(total_loss/checkpointing_freq, flush = True)
