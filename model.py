@@ -174,7 +174,7 @@ if __name__ == '__main__':
 
     MAX_EPOCHS = 5
     lr = 3e-5
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=0.01)
     criterion = torch.nn.CrossEntropyLoss()
     labels = torch.tensor([0] * BATCH_SIZE).to(device)
     checkpointing_freq = 50
