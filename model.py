@@ -211,10 +211,12 @@ if __name__ == '__main__':
             y_pred = model(data_batch)
             loss = criterion(y_pred, labels)
             total_loss += loss.item()
-
+            
             optimizer.zero_grad()
 
             loss.backward()
+
+            nn.utils.clip_grad_norm_(model.parameters(), args.clip)
 
             optimizer.step()
             scheduler.step()
