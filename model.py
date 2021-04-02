@@ -185,7 +185,6 @@ if __name__ == '__main__':
     except:
         print('failed to load any checkpoints.')
 
-    # TODO: last batch padding
     for epoch in range(MAX_EPOCHS):
         #TODO: early stopping and checkpointing
         #TODO: shuffling

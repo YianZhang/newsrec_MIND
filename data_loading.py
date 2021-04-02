@@ -80,9 +80,11 @@ class MINDDataset(torch.utils.data.Dataset):
       line = f.readline()
       while line != '':
         # get the histories
+        # impr_id = line.strip("\n").split(self.col_spliter)[0] # for debugging
         uid, time, history, impr = line.strip("\n").split(self.col_spliter)[-4:]
         history = history.split()
         history = [0] * (self.his_size - len(history)) + history[:self.his_size]
+        # hid = history # for debugging
         history = ['' if hid == 0 else self._titles[hid] for hid in history] # to be further discussed
         history_mask = [1 if his!='' else 0 for his in history]
         pos, neg = [], [] 
@@ -102,6 +104,7 @@ class MINDDataset(torch.utils.data.Dataset):
             candidate_mask = [1 if candidate!='' else 0 for candidate in candidates]
             #Note: uid not parsed since not used in our vanilla model.
             instance = {'history': history, 'candidates': candidates, 'history_mask': history_mask, 'candidate_mask': candidate_mask}
+            # instance = {'history': history, 'candidates': candidates, 'history_mask': history_mask, 'candidate_mask': candidate_mask, 'impr_id': impr_id, 'pid': pid, 'nid': neg_samples, 'hid':hid} # for debugging
             self._dataset.append(instance)
         else:
           pass #test set: TODO
@@ -118,9 +121,22 @@ class MINDDataset(torch.utils.data.Dataset):
     #Bertify
     #TODO: test set
     sentences = []
+    # impr_ids = [] # for debugging
+    # pids = [] # for debugging
+    # nids = [] # for debugging
+    # hids = [] # for debugging
     for instance in batch:
       sentences+=instance['candidates']+instance['history']
+      # impr_ids.append(instance['impr_id']) # for debugging
+      # pids.append(instance['pid']) # for debugging
+      # nids.append(instance['nid']) # for debugging
+      # hids.append(instance['hid']) # for debugging
     output = self.tokenizer(sentences, return_tensors="pt", padding = "longest")
+    # output['sentences'] = sentences # for debugging
+    # output['impr_ids'] = impr_ids # for debugging
+    # output['pids'] = pids # for debugging
+    # output['nids'] = nids # for debugging
+    # output['hids'] = hids # for debugging
     output['labels'] = torch.Tensor(([1] + [0] * self.npratio + [-1] * self.his_size) * len(batch))
     output['candidate_mask'] = torch.Tensor([instance['candidate_mask'] for instance in batch])
     output['history_mask'] = torch.Tensor([instance['history_mask'] for instance in batch])
@@ -131,7 +147,7 @@ if __name__ == '__main__':
   from torch.utils.data import RandomSampler
   from torch.utils.data import DataLoader
 
-  my_ds = MINDDataset('train/news.tsv', 'train/behaviors.tsv',npratio=2, his_size=2, batch_size=4)
+  my_ds = MINDDataset('train/news.tsv', 'train/behaviors.tsv',npratio=2, his_size=2, batch_size=2)
   my_ds.load_data()
 
   train_sampler = RandomSampler(my_ds)
