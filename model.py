@@ -189,6 +189,7 @@ if __name__ == '__main__':
     except:
         print('failed to load any checkpoints.')
 
+    #04/02: check nrms HPs; npratio
     for epoch in range(MAX_EPOCHS):
         #TODO: early stopping and checkpointing
         #TODO: shuffling
@@ -202,7 +203,7 @@ if __name__ == '__main__':
         total_loss = 0
         loss_his = []
         for batch_id, data_batch in enumerate(train_dataloader):
-            if batch_id == len(train)//BATCH_SIZE + 1:
+            if batch_id == len(train)//BATCH_SIZE:
                 continue
             model.train()
             # impr_indices = torch.nonzero(data_batch["labels"] != -1, as_tuple = True)[0] # must retrieve the labels first, because it is deleted by the forward func
@@ -216,7 +217,7 @@ if __name__ == '__main__':
 
             loss.backward()
 
-            nn.utils.clip_grad_norm_(model.parameters(), args.clip)
+            # nn.utils.clip_grad_norm_(model.parameters(), 0) # gradient clipping
 
             optimizer.step()
             scheduler.step()
