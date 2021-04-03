@@ -182,7 +182,7 @@ if __name__ == '__main__':
     num_train_steps = MAX_EPOCHS*(len(train_dataloader) - 1) # to be further checked
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=0.01)
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps, num_train_steps)
-    criterion = torch.nn.CrossEntropyLoss()
+    criterion = torch.nn.CrossEntropyLoss() # default reduction = "mean"
     labels = torch.tensor([0] * BATCH_SIZE).to(device)
     
     
