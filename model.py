@@ -229,8 +229,9 @@ if __name__ == '__main__':
             optimizer.step()
             scheduler.step()
 
-            if batch_id%checkpointing_freq == 0:
-                print('epoch {}, batch {}, train_loss: {}'.format(epoch, batch_id, total_loss/checkpointing_freq), flush = True)
+            train_batch = batch_id
+            if batch_id%checkpointing_freq == 0 and batch_id != 0:
+                print('epoch {}, batch {}, train_loss: {}'.format(epoch, train_batch, total_loss/checkpointing_freq), flush = True)
                 total_loss = 0
         
                 model.eval()
