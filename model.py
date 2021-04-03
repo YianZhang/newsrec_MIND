@@ -133,8 +133,8 @@ if __name__ == '__main__':
     # model HPs
     # position embedding related HPs are useless.
     BATCH_SIZE = 16
-    self_attention_hyperparameters = {'num_attention_heads' : 1, 'hidden_size' : 768, 'attention_probs_dropout_prob': 0.2, 'max_position_embeddings': 4, 'is_decoder': False, 'position_embedding_type' : None}
-
+    self_attention_hyperparameters = {'num_attention_heads' : 16, 'hidden_size' : 768, 'attention_probs_dropout_prob': 0.2, 'max_position_embeddings': 4, 'is_decoder': False, 'position_embedding_type' : None}
+    assert self_attention_hyperparameters['hidden_size'] % self_attention_hyperparameters['num_attention_heads'] == 0
     # get data
     from data_loading import MINDDataset
     from torch.utils.data import RandomSampler
@@ -220,11 +220,11 @@ if __name__ == '__main__':
             scheduler.step()
 
             if batch_id%checkpointing_freq == 0:
-                print(total_loss/checkpointing_freq, flush = True)
+                print(batch_id, total_loss/checkpointing_freq, flush = True)
                 loss_his.append(total_loss/checkpointing_freq)
                 total_loss = 0
                 save_checkpoint(epoch, model, optimizer, loss.item())
-        
+             
         print('epoch loss: ', sum(loss_his)/len(loss_his))
             
         
