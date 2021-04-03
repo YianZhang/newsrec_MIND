@@ -177,7 +177,7 @@ if __name__ == '__main__':
     lr = 3e-5
     num_warmup_steps = 3000 # bert 10,000
     checkpointing_freq = 200
-    valid_used_ratio = 0.05 # out of 716 * 16
+    valid_used_ratio = 0.005 # out of 6962 * 16 # change when swtiching to large datasets!
 
     num_train_steps = MAX_EPOCHS*(len(train_dataloader) - 1) # to be further checked
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=0.01)
@@ -244,6 +244,7 @@ if __name__ == '__main__':
                     valid_loss += loss.item()
 
                 valid_loss = valid_loss/int(len(valid_dataloader) * valid_used_ratio)
+                print('epoch {}, batch {}, valid_loss: {}'.format(epoch, batch_id, valid_loss), flush = True)
                 if valid_loss < lowest_loss:
                     lowest_loss = valid_loss
                     save_checkpoint(epoch, model, optimizer, valid_loss)
