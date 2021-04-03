@@ -175,13 +175,13 @@ if __name__ == '__main__':
 
     MAX_EPOCHS = 5
     lr = 3e-5
-    num_warmup_steps = 10000
-    num_train_steps = MAX_EPOCHS*(len(train)//BATCH_SIZE) # to be further checked
+    num_warmup_steps = 3000 #bert 10,000
+    num_train_steps = MAX_EPOCHS*(len(train_dataloader) - 1) # to be further checked
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=0.01)
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps, num_train_steps)
     criterion = torch.nn.CrossEntropyLoss()
     labels = torch.tensor([0] * BATCH_SIZE).to(device)
-    checkpointing_freq = 50
+    checkpointing_freq = 100
 
     try:
         load_checkpoint(model, optimizer, device)
@@ -200,12 +200,12 @@ if __name__ == '__main__':
             # early stopping using metrics
             # lr, batch_size, max_epochs, 
             # bert config HPs
+        model.train()
         total_loss = 0
         loss_his = []
         for batch_id, data_batch in enumerate(train_dataloader):
-            if batch_id == len(train)//BATCH_SIZE:
+            if batch_id == len(train_dataloader) - 1:
                 continue
-            model.train()
             # impr_indices = torch.nonzero(data_batch["labels"] != -1, as_tuple = True)[0] # must retrieve the labels first, because it is deleted by the forward func
             # impr_labels = data_batch["labels"][impr_indices].view(BATCH_SIZE, -1)
             data_batch = data_batch.to(device)
@@ -223,12 +223,22 @@ if __name__ == '__main__':
             scheduler.step()
 
             if batch_id%checkpointing_freq == 0:
-                print(batch_id, total_loss/checkpointing_freq, flush = True)
+                print(epoch, batch_id, total_loss/checkpointing_freq, flush = True)
                 loss_his.append(total_loss/checkpointing_freq)
                 total_loss = 0
                 save_checkpoint(epoch, model, optimizer, loss.item())
-             
-        print('epoch loss: ', sum(loss_his)/len(loss_his))
+        
+        model.eval()
+        valid_loss = 0
+        for batch_id, data_batch in enumerate(valid_dataloader):
+            if batch_id == len(valid_dataloader) - 1:
+                continue
+            data_batch = data_batch.to(device)
+            y_pred = model(data_batch)
+            loss = criterion(y_pred, labels)
+            valid_loss += loss.item()
+ 
+        print('epoch {} validation loss: {}'.format(epoch, valid_loss/(len(valid_dataloader) - 1)))
             
         
             
