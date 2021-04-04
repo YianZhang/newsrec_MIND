@@ -6,9 +6,6 @@ from transformers.models.bert.modeling_bert import BertSelfAttention
 from transformers import get_linear_schedule_with_warmup
 
 # program counter
-# 查data对不对
-# 看<5的多不多，不多直接删除？
-# gradient clipping 1
 # AdamW, scheduler
 # most recent history + position embedding
 
@@ -224,7 +221,7 @@ if __name__ == '__main__':
 
             loss.backward()
 
-            # nn.utils.clip_grad_norm_(model.parameters(), 0) # gradient clipping
+            # nn.utils.clip_grad_norm_(model.parameters(), 1) # gradient clipping
 
             optimizer.step()
             scheduler.step()
