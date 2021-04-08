@@ -179,9 +179,9 @@ if __name__ == '__main__':
     MAX_EPOCHS = 5
     lr = 3e-5
     num_warmup_steps = 3000 # bert 10,000
-    checkpointing_freq = 100
+    checkpointing_freq = 200
     # valid_used_ratio = 0.005 # small # out of 6962 * 16 # change when swtiching to large datasets!
-    valid_used_ratio = 0.05 # demo # out of 716 * 16
+    valid_used_ratio = 0.02 # demo # out of 716 * 16
 
     num_train_steps = MAX_EPOCHS*(len(train_dataloader) - 1) # to be further checked
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=0.01)
