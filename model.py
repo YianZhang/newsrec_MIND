@@ -228,7 +228,7 @@ if __name__ == '__main__':
 
             if ( batch_id + 1 ) % checkpointing_freq == 0:
                 train_batch = batch_id
-                print('epoch {}, batch {}, train_loss: {}'.format(epoch, batch_id, total_loss/checkpointing_freq), flush = True)
+                print('epoch {}, batch {}/{}, train_loss: {}'.format(epoch, batch_id, len(train_dataloader), total_loss/checkpointing_freq), flush = True)
                 total_loss = 0
         
                 model.eval()
@@ -242,7 +242,7 @@ if __name__ == '__main__':
                     valid_loss += loss.item()
 
                 valid_loss = valid_loss/int(len(valid_dataloader) * valid_used_ratio)
-                print('epoch {}, batch {}, valid_loss: {}'.format(epoch, train_batch, valid_loss), flush = True)
+                print('valid_loss: {}'.format(valid_loss), flush = True)
                 if valid_loss < lowest_loss:
                     lowest_loss = valid_loss
                     save_checkpoint(epoch, model, optimizer, valid_loss)
