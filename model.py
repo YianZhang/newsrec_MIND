@@ -129,7 +129,7 @@ if __name__ == '__main__':
 
     # model HPs
     # position embedding related HPs are useless.
-    BATCH_SIZE = 3
+    BATCH_SIZE = 10
     self_attention_hyperparameters = {'num_attention_heads' : 16, 'hidden_size' : 768, 'attention_probs_dropout_prob': 0.2, 'max_position_embeddings': 4, 'is_decoder': False, 'position_embedding_type' : None}
     assert self_attention_hyperparameters['hidden_size'] % self_attention_hyperparameters['num_attention_heads'] == 0
     # get data
@@ -176,7 +176,7 @@ if __name__ == '__main__':
     MAX_EPOCHS = 5
     lr = 3e-5
     num_warmup_steps = 3000 # bert 10,000
-    checkpointing_freq = 200
+    checkpointing_freq = 100
     # valid_used_ratio = 0.005 # small # out of 6962 * 16 # change when swtiching to large datasets!
     valid_used_ratio = 0.05 # demo # out of 716 * 16
 
