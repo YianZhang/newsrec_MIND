@@ -258,12 +258,14 @@ if __name__ == '__main__':
         model.eval()
         valid_loss = 0
         for batch_id, data_batch in enumerate(valid_dataloader):
+            if batch_id == int(len(valid_dataloader) * 0.3):
+                break
             data_batch = data_batch.to(device)
             y_pred = model(data_batch)
             loss = criterion(y_pred, labels)
             valid_loss += loss.item()
 
-        valid_loss = valid_loss/len(valid_dataloader)
+        valid_loss = valid_loss/int(len(valid_dataloader) * 0.3)
 
         print('end of epoch {}, full validation set loss: {}'.format(epoch, valid_loss), flush = True)
         
