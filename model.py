@@ -229,7 +229,8 @@ if __name__ == '__main__':
             if ( batch_id + 1 ) % checkpointing_freq == 0:
                 print('epoch {}, batch {}/{}, train_loss: {}'.format(epoch, batch_id, len(train_dataloader), total_loss/checkpointing_freq), flush = True)
                 total_loss = 0
-        
+
+                print('validating...')
                 model.eval()
                 valid_loss = 0
                 for batch_id, data_batch in enumerate(valid_dataloader):
@@ -247,7 +248,8 @@ if __name__ == '__main__':
                     save_checkpoint(epoch, model, optimizer, valid_loss)
 
                 model.train()
-        
+
+        print('end of epoch validating...')
         model.eval()
         valid_loss = 0
         for batch_id, data_batch in enumerate(valid_dataloader):
