@@ -125,7 +125,7 @@ class NewsRec(torch.nn.Module):
 if __name__ == '__main__':
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    print('Device: ', device)
+    print('Device: ', device, flush = True)
 
     # model HPs
     # position embedding related HPs are useless.
@@ -160,10 +160,13 @@ if __name__ == '__main__':
     collate_fn=valid.collate_fn
     )
 
+    print('finish loading data', flush = True)
+
     # build the model
     self_attention_config = Config(self_attention_hyperparameters)
     model = NewsRec(self_attention_config).to(device)
 
+    print('finish building the model', flush = True)
 
 
     # training
@@ -188,9 +191,9 @@ if __name__ == '__main__':
     
     try:
         load_checkpoint(model, optimizer, device)
-        print('checkpoint loaded')
+        print('checkpoint loaded', flush = True)
     except:
-        print('failed to load any checkpoints.')
+        print('failed to load any checkpoints.', flush = True)
 
     #04/02: check nrms HPs; npratio
 
@@ -207,6 +210,8 @@ if __name__ == '__main__':
             # bert config HPs
         total_loss = 0
         model.train()
+
+        print('start training ...', flush = True)
         for batch_id, data_batch in enumerate(train_dataloader):
             if batch_id == len(train_dataloader) - 1:
                 continue
@@ -260,7 +265,7 @@ if __name__ == '__main__':
 
         valid_loss = valid_loss/len(valid_dataloader)
 
-        print('end of epoch {}, full validation set loss: {}'.format(epoch, valid_loss))
+        print('end of epoch {}, full validation set loss: {}'.format(epoch, valid_loss), flush = True)
         
             
 
