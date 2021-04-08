@@ -124,6 +124,12 @@ class NewsRec(torch.nn.Module):
 
 if __name__ == '__main__':
 
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--checkpoint_name', default = 'model.pt')
+    args = parser.parse_args()
+
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print('Device: ', device, flush = True)
 
@@ -190,7 +196,7 @@ if __name__ == '__main__':
     labels = torch.tensor([0] * BATCH_SIZE).to(device)
     
     try:
-        load_checkpoint(model, optimizer, device)
+        load_checkpoint(model, optimizer, device, args.checkpoint_name)
         print('checkpoint loaded', flush = True)
     except:
         print('failed to load any checkpoints.', flush = True)
@@ -250,7 +256,7 @@ if __name__ == '__main__':
                 print('valid_loss: {}'.format(valid_loss), flush = True)
                 if valid_loss < lowest_loss:
                     lowest_loss = valid_loss
-                    save_checkpoint(epoch, model, optimizer, valid_loss)
+                    save_checkpoint(epoch, model, optimizer, valid_loss, args.checkpoint_name)
 
                 model.train()
 
