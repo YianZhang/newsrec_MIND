@@ -227,7 +227,6 @@ if __name__ == '__main__':
             scheduler.step()
 
             if ( batch_id + 1 ) % checkpointing_freq == 0:
-                train_batch = batch_id
                 print('epoch {}, batch {}/{}, train_loss: {}'.format(epoch, batch_id, len(train_dataloader), total_loss/checkpointing_freq), flush = True)
                 total_loss = 0
         
