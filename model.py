@@ -137,7 +137,10 @@ if __name__ == '__main__':
     from torch.utils.data import RandomSampler
     from torch.utils.data import DataLoader
     from utils import Config, save_checkpoint, load_checkpoint
-    train = MINDDataset('train/news.tsv', 'train/behaviors.tsv',batch_size=BATCH_SIZE)
+    from os import path
+
+    DATA_SIZE = "demo" # demo, small, complete
+    train = MINDDataset(path.join(DATA_SIZE,'train/news.tsv'), path.join(DATA_SIZE,'train/behaviors.tsv'), batch_size=BATCH_SIZE)
     train.load_data()
     train_sampler = RandomSampler(train)
     train_dataloader = DataLoader(
@@ -147,7 +150,7 @@ if __name__ == '__main__':
     collate_fn=train.collate_fn
     )
 
-    valid = MINDDataset('valid/news.tsv', 'valid/behaviors.tsv',batch_size=BATCH_SIZE)
+    valid = MINDDataset(path.join(DATA_SIZE,'train/news.tsv'), path.join(DATA_SIZE,'train/behaviors.tsv'),batch_size=BATCH_SIZE)
     valid.load_data()
     valid_sampler = RandomSampler(valid)
     valid_dataloader = DataLoader(
@@ -174,7 +177,8 @@ if __name__ == '__main__':
     lr = 3e-5
     num_warmup_steps = 3000 # bert 10,000
     checkpointing_freq = 200
-    valid_used_ratio = 0.005 # out of 6962 * 16 # change when swtiching to large datasets!
+    # valid_used_ratio = 0.005 # small # out of 6962 * 16 # change when swtiching to large datasets!
+    valid_used_ratio = 0.05 # demo # out of 716 * 16
 
     num_train_steps = MAX_EPOCHS*(len(train_dataloader) - 1) # to be further checked
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=0.01)
@@ -182,10 +186,6 @@ if __name__ == '__main__':
     criterion = torch.nn.CrossEntropyLoss() # default reduction = "mean"
     labels = torch.tensor([0] * BATCH_SIZE).to(device)
     
-    
-
-
-
     try:
         load_checkpoint(model, optimizer, device)
         print('checkpoint loaded')
