@@ -248,7 +248,17 @@ if __name__ == '__main__':
 
                 model.train()
         
-        print('end of epoch {}, latest validation loss: {}, best validation loss: {}'.format(epoch, valid_loss, lowest_loss))
+        model.eval()
+        valid_loss = 0
+        for batch_id, data_batch in enumerate(valid_dataloader):
+            data_batch = data_batch.to(device)
+            y_pred = model(data_batch)
+            loss = criterion(y_pred, labels)
+            valid_loss += loss.item()
+
+        valid_loss = valid_loss/len(valid_dataloader)
+
+        print('end of epoch {}, full validation set loss: {}'.format(epoch, valid_loss))
         
             
 
