@@ -3,7 +3,7 @@ import random
 from transformers import BertTokenizer
 
 class MINDDataset(torch.utils.data.Dataset):
-  def __init__(self, news_file, behavior_file, npratio=5, his_size=5, col_spliter="\t", ID_spliter="%", 
+  def __init__(self, news_file, behavior_file, npratio=4, his_size=50, col_spliter="\t", ID_spliter="%", 
   batch_size=1, title_size=50, model='bert-base-uncased', subset='train'):
     """ initialize the dataset. """
     self._titles = {}
@@ -14,7 +14,7 @@ class MINDDataset(torch.utils.data.Dataset):
     self.col_spliter = col_spliter
     self.ID_spliter = ID_spliter
     self.batch_size = batch_size
-    self.title_size = title_size
+    self.title_size = title_size # not used so far
     self.his_size = his_size
     self.npratio = npratio
     self.model = model
@@ -35,26 +35,6 @@ class MINDDataset(torch.utils.data.Dataset):
           continue
         self._titles[nid] = title
         line = f.readline()
-
-  # def init_behaviors(self):
-  #   """get behaviors from behaviors_file, parse and store the impression and the history."""
-  #   with open(self.behavior_file, 'r') as f:
-  #     line = f.readline()
-  #     while line != '':
-  #       uid, time, history, impr = line.strip("\n").split(self.col_spliter)[-4:]
-  #       history = history.split()
-  #       history = [0] * (self.his_size - len(history)) + history[:self.his_size]
-
-  #       positive, negative = [], []
-  #       for news in impr.split():
-  #         nid, label = news.split("-")
-  #         if int(label):
-  #           positive.append(nid)
-  #         else:
-  #           negative.append(nid)
-      
-  #       instance = {'history':history, 'positive': positive, 'negative': negative}
-  #       self._behaviors.append(instance)
         
   def newsample(self, news, ratio):
     """ Sample ratio samples from news list. 
