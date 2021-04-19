@@ -92,32 +92,32 @@ class MINDDataset(torch.utils.data.Dataset):
 
         line = f.readline()
     
-    def encode_all_titles(self, title_encoder, batch_size = 128):
-      device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-      title_encoder = title_encoder.to(device)
-      if not hasattr(self, '_titles'):
-        self.init_titles()
-      indices, reprs = [], []
-      i == 0
-      batch_indices, batch_titles = [], []
-      for nid, title in self._titles.items():
-        batch_indices.append(nid)
-        batch_titles.append(title)
-        i += 1
-        if i % batch_size == 0:
-          encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest").to(device) #tokenize
-          batch_reprs = title_encoder(**encoder_input).pooler_output #forward
-          indices.extend(batch_indices)
-          reprs.extend(list(batch_reprs))
-          batch_indices, batch_titles = [], [] # clear
-          #TODO: device
+  def encode_all_titles(self, title_encoder, batch_size = 128):
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    title_encoder = title_encoder.to(device)
+    if not hasattr(self, '_titles'):
+      self.init_titles()
+    indices, reprs = [], []
+    i == 0
+    batch_indices, batch_titles = [], []
+    for nid, title in self._titles.items():
+      batch_indices.append(nid)
+      batch_titles.append(title)
+      i += 1
+      if i % batch_size == 0:
+        encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest").to(device) #tokenize
+        batch_reprs = title_encoder(**encoder_input).pooler_output #forward
+        indices.extend(batch_indices)
+        reprs.extend(list(batch_reprs))
+        batch_indices, batch_titles = [], [] # clear
+        #TODO: device
 
-      # forward and extend the rest titles
-      encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest").to(device) #tokenize
-      batch_reprs = title_encoder(**encoder_input).pooler_output #forward
-      indices.extend(batch_indices)
-      reprs.extend(list(batch_reprs))
-      self._title_reprs = dict(zip(indices, reprs))
+    # forward and extend the rest titles
+    encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest").to(device) #tokenize
+    batch_reprs = title_encoder(**encoder_input).pooler_output #forward
+    indices.extend(batch_indices)
+    reprs.extend(list(batch_reprs))
+    self._title_reprs = dict(zip(indices, reprs))
 
 
   # def load_full_data(self): # under construction
