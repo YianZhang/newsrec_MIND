@@ -117,7 +117,7 @@ class MINDDataset(torch.utils.data.Dataset):
       batch_reprs = title_encoder(**encoder_input).pooler_output #forward
       indices.extend(batch_indices)
       reprs.extend(list(batch_reprs))
-      self._title_reprs = dict(zip(indices, rerps))
+      self._title_reprs = dict(zip(indices, reprs))
 
 
   # def load_full_data(self): # under construction
