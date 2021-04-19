@@ -98,7 +98,7 @@ class MINDDataset(torch.utils.data.Dataset):
     if not hasattr(self, '_titles'):
       self.init_titles()
     indices, reprs = [], []
-    i == 0
+    i = 0
     batch_indices, batch_titles = [], []
     for nid, title in self._titles.items():
       batch_indices.append(nid)
