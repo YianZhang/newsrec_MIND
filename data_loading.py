@@ -9,6 +9,7 @@ class MINDDataset(torch.utils.data.Dataset):
     self._titles = {}
     self._behaviors = []
     self._dataset = []
+    self._title_reprs = {}
 
     #Note: the longest title in demo-train is 48.
     self.col_spliter = col_spliter
@@ -69,10 +70,10 @@ class MINDDataset(torch.utils.data.Dataset):
         history_mask = [1 if his!='' else 0 for his in history]
         pos, neg = [], [] 
         # get the positive and negative ids in this impression
-        if self.subset == 'train':
+        if self.subset == 'train' or 'valid':
           for news in impr.split():
             nid, label = news.split("-")
-            if int(label):
+            if label == '1':
               pos.append(nid)
             else:
               neg.append(nid)
@@ -90,6 +91,75 @@ class MINDDataset(torch.utils.data.Dataset):
           pass #test set: TODO
 
         line = f.readline()
+    
+    def encode_all_titles(self, title_encoder, batch_size = 128):
+      device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+      title_encoder = title_encoder.to(device)
+      if not hasattr(self, '_titles'):
+        self.init_titles()
+      indices, reprs = [], []
+      i == 0
+      batch_indices, batch_titles = [], []
+      for nid, title in self._titles.items():
+        batch_indices.append(nid)
+        batch_titles.append(title)
+        i += 1
+        if i % batch_size == 0:
+          encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest").to(device) #tokenize
+          batch_reprs = title_encoder(**encoder_input).pooler_output #forward
+          indices.extend(batch_indices)
+          reprs.extend(list(batch_reprs))
+          batch_indices, batch_titles = [], [] # clear
+          #TODO: device
+
+      # forward and extend the rest titles
+      encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest").to(device) #tokenize
+      batch_reprs = title_encoder(**encoder_input).pooler_output #forward
+      indices.extend(batch_indices)
+      reprs.extend(list(batch_reprs))
+      self._title_reprs = dict(zip(indices, rerps))
+
+
+  # def load_full_data(self): # under construction
+  #   if not hasattr(self, '_titles'):
+  #     self.init_titles()
+    
+  #   with open(self.behavior_file, 'r') as f:
+  #     line = f.readline()
+  #     while line != '':
+  #       # get the histories
+  #       # impr_id = line.strip("\n").split(self.col_spliter)[0] # for debugging
+  #       uid, time, history, impr = line.strip("\n").split(self.col_spliter)[-4:]
+  #       history = history.split()
+  #       history = [0] * (self.his_size - len(history)) + history[:self.his_size]
+  #       # hid = history # for debugging
+  #       history = ['' if hid == 0 else self._titles[hid] for hid in history] # to be further discussed
+  #       history_mask = [1 if his!='' else 0 for his in history]
+  #       pos, neg = [], [] 
+  #       # get the positive and negative ids in this impression
+  #       if self.subset == 'train' or 'valid':
+  #         for news in impr.split():
+  #           nid, label = news.split("-")
+  #           if label == '1':
+  #             pos.append(nid)
+  #           else:
+  #             neg.append(nid)
+          
+  #         # make an instance for each positive sample in the impression
+  #         for pid in pos:
+  #           neg_samples = self.newsample(neg, self.npratio)
+  #           candidates = [self._titles[pid]] + [self._titles[nid] if nid!=0 else '' for nid in neg_samples] # to be further discussed
+  #           candidate_mask = [1 if candidate!='' else 0 for candidate in candidates]
+  #           #Note: uid not parsed since not used in our vanilla model.
+  #           instance = {'history': history, 'candidates': candidates, 'history_mask': history_mask, 'candidate_mask': candidate_mask}
+  #           # instance = {'history': history, 'candidates': candidates, 'history_mask': history_mask, 'candidate_mask': candidate_mask, 'impr_id': impr_id, 'pid': pid, 'nid': neg_samples, 'hid':hid} # for debugging
+  #           self._dataset.append(instance)
+  #       else:
+  #         pass #test set: TODO
+
+  #       line = f.readline()
+
+    
   
   def __len__(self):
     return len(self._dataset)
