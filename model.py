@@ -156,7 +156,7 @@ if __name__ == '__main__':
     collate_fn=train.collate_fn
     )
 
-    valid = MINDDataset(path.join(DATA_SIZE,'valid/news.tsv'), path.join(DATA_SIZE,'valid/behaviors.tsv'),batch_size=BATCH_SIZE)
+    valid = MINDDataset(path.join(DATA_SIZE,'valid/news.tsv'), path.join(DATA_SIZE,'valid/behaviors.tsv'),batch_size=BATCH_SIZE, subset='valid')
     valid.load_data()
     valid_sampler = RandomSampler(valid)
     valid_dataloader = DataLoader(

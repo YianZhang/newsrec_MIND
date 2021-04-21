@@ -10,6 +10,7 @@ class MINDDataset(torch.utils.data.Dataset):
     self._behaviors = []
     self._dataset = []
     self._title_reprs = {}
+    self._processed_impressions = []
 
     #Note: the longest title in demo-train is 48.
     self.col_spliter = col_spliter
@@ -24,7 +25,7 @@ class MINDDataset(torch.utils.data.Dataset):
     self.news_file = news_file
     self.behavior_file = behavior_file
 
-    self.tokenizer = BertTokenizer.from_pretrained(self.model)
+    self.tokenizer = BertTokenizer.from_pretrained(self.model) # assuming the model type is bert
   
   def init_titles(self):
     """ get news titles from news_file."""
@@ -121,44 +122,44 @@ class MINDDataset(torch.utils.data.Dataset):
     self._title_reprs = dict(zip(indices, reprs))
 
 
-  # def load_full_data(self): # under construction
-  #   if not hasattr(self, '_titles'):
-  #     self.init_titles()
-    
-  #   with open(self.behavior_file, 'r') as f:
-  #     line = f.readline()
-  #     while line != '':
-  #       # get the histories
-  #       # impr_id = line.strip("\n").split(self.col_spliter)[0] # for debugging
-  #       uid, time, history, impr = line.strip("\n").split(self.col_spliter)[-4:]
-  #       history = history.split()
-  #       history = [0] * (self.his_size - len(history)) + history[:self.his_size]
-  #       # hid = history # for debugging
-  #       history = ['' if hid == 0 else self._titles[hid] for hid in history] # to be further discussed
-  #       history_mask = [1 if his!='' else 0 for his in history]
-  #       pos, neg = [], [] 
-  #       # get the positive and negative ids in this impression
-  #       if self.subset == 'train' or 'valid':
-  #         for news in impr.split():
-  #           nid, label = news.split("-")
-  #           if label == '1':
-  #             pos.append(nid)
-  #           else:
-  #             neg.append(nid)
-          
-  #         # make an instance for each positive sample in the impression
-  #         for pid in pos:
-  #           neg_samples = self.newsample(neg, self.npratio)
-  #           candidates = [self._titles[pid]] + [self._titles[nid] if nid!=0 else '' for nid in neg_samples] # to be further discussed
-  #           candidate_mask = [1 if candidate!='' else 0 for candidate in candidates]
-  #           #Note: uid not parsed since not used in our vanilla model.
-  #           instance = {'history': history, 'candidates': candidates, 'history_mask': history_mask, 'candidate_mask': candidate_mask}
-  #           # instance = {'history': history, 'candidates': candidates, 'history_mask': history_mask, 'candidate_mask': candidate_mask, 'impr_id': impr_id, 'pid': pid, 'nid': neg_samples, 'hid':hid} # for debugging
-  #           self._dataset.append(instance)
-  #       else:
-  #         pass #test set: TODO
+  def load_data_for_evaluation(self): # under construction
 
-  #       line = f.readline()
+    assert self.subset == 'valid' or 'test' # only the validation and the test sets are legal
+
+    if not hasattr(self, '_titles'):
+      self.init_titles()
+    
+    if not hasattr(self, '_title_reprs'):
+      Exception("Please encode the titles first!")
+    
+    self._processed_impressions = []
+    with open(self.behavior_file, 'r') as f:
+      line = f.readline()
+      while line != '':
+        instance = {}
+        # get the histories
+        uid, time, history, impr = line.strip("\n").split(self.col_spliter)[-4:]
+        history = history.split()
+        history = [0] * (self.his_size - len(history)) + history[:self.his_size]
+        history_reprs = [torch.zeros(768) if hid == 0 else self._title_reprs[hid] for hid in history]
+        history_mask = [1 if hid!=0 else 0 for hid in history]
+
+        ids, labels = [], []
+        if self.subset == 'valid':
+          for news in impr.split():
+            nid, label = news.split("-")
+            ids.append(nid)
+            labels.append(int(label))
+          
+          candidate_reprs = [self._title_reprs[nid] for nid in ids]
+          # candidate_mask = [1 if candidate!='' else 0 for candidate in candidates] # don't think we need this
+
+          instance = {'history_reprs': history_reprs, 'history_mask': history_mask, 'candidate_reprs': candidate_reprs, 'labels': labels}
+          self._processed_impressions.append(instance)
+        else:
+          pass #test set: TODO
+
+        line = f.readline()
 
     
   
