@@ -105,18 +105,19 @@ class MINDDataset(torch.utils.data.Dataset):
       batch_titles.append(title)
       i += 1
       if i % batch_size == 0:
+        #print('batch', i//batch_size, flush=True)
         encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest").to(device) #tokenize
-        batch_reprs = title_encoder(**encoder_input).pooler_output #forward
+        batch_reprs = title_encoder(**encoder_input).pooler_output.data.to('cpu') #forward
         indices.extend(batch_indices)
-        reprs.extend(list(batch_reprs))
+        reprs.extend(batch_reprs)
+        #print(len(reprs), len(reprs[0]))
         batch_indices, batch_titles = [], [] # clear
-        #TODO: device
 
     # forward and extend the rest titles
     encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest").to(device) #tokenize
-    batch_reprs = title_encoder(**encoder_input).pooler_output #forward
+    batch_reprs = title_encoder(**encoder_input).pooler_output.data.to('cpu') #forward
     indices.extend(batch_indices)
-    reprs.extend(list(batch_reprs))
+    reprs.extend(batch_reprs)
     self._title_reprs = dict(zip(indices, reprs))
 
 
