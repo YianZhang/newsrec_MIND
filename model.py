@@ -95,6 +95,12 @@ class NewsRec(torch.nn.Module):
         mask = ((1 - candidate_mask) * -10000.0).to(dtype=next(self.parameters()).dtype)
         return x + mask
 
+    def predict(self, instance):
+        self_attended_his_reprs = self.news_MHA(instance['history_reprs'], instance['history_mask'])[0]
+        user_rerps = self.news_pooling(self_attended_his_reprs, instance['history_mask'])
+        scores = torch.bmm(instance['candidate_reprs'], user_reprs.view(user_reprs.shape[0], user_reprs.shape[1], 1)).squeeze(-1)
+        return scores
+
     def forward(self, x):
         #print(x.keys())
         batch_size = x['candidate_mask'].shape[0]
