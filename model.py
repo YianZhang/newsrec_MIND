@@ -96,9 +96,13 @@ class NewsRec(torch.nn.Module):
         return x + mask
 
     def predict(self, instance):
-        self_attended_his_reprs = self.news_MHA(instance['history_reprs'], instance['history_mask'])[0]
-        user_rerps = self.news_pooling(self_attended_his_reprs, instance['history_mask'])
-        scores = torch.bmm(instance['candidate_reprs'], user_reprs.view(user_reprs.shape[0], user_reprs.shape[1], 1)).squeeze(-1)
+        hr_shape, hm_shape, cr_shape = instance['history_reprs'].shape, instance['history_mask'].shape, instance['candidate_reprs'].shape # get shape for reshaping later
+        history_reprs = instance['history_reprs'].view(1, hr_shape[0], hr_shape[1]) # reshape to match the input format
+        history_mask = instance['history_mask'].view(1, hm_shape[0])
+        candidate_reprs = instance['candidate_reprs'].view(1, cr_shape[0], cr_shape[1])
+        self_attended_his_reprs = self.news_MHA(history_reprs, history_mask)[0] # self-attention
+        user_reprs = self.news_pooling(self_attended_his_reprs, history_mask).view(user_reprs.shape[0], user_reprs.shape[1], 1) # attention pooling and reshaping
+        scores = torch.bmm(candidate_reprs, user_reprs).data.squeeze(-1) # dot product
         return scores
 
     def forward(self, x):
