@@ -101,8 +101,8 @@ class NewsRec(torch.nn.Module):
         history_mask = instance['history_mask'].view(1, hm_shape[0])
         candidate_reprs = instance['candidate_reprs'].view(1, cr_shape[0], cr_shape[1])
         self_attended_his_reprs = self.news_MHA(history_reprs, history_mask)[0] # self-attention
-        user_reprs = self.news_pooling(self_attended_his_reprs, history_mask).view(user_reprs.shape[0], user_reprs.shape[1], 1) # attention pooling and reshaping
-        scores = torch.bmm(candidate_reprs, user_reprs).data.squeeze(-1) # dot product
+        user_reprs = self.news_pooling(self_attended_his_reprs, history_mask) # attention pooling
+        scores = torch.bmm(candidate_reprs, user_reprs.view(user_reprs.shape[0], user_reprs.shape[1], 1)).data.squeeze(-1) # dot product
         return scores
 
     def forward(self, x):
