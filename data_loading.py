@@ -141,7 +141,7 @@ class MINDDataset(torch.utils.data.Dataset):
         uid, time, history, impr = line.strip("\n").split(self.col_spliter)[-4:]
         history = history.split()
         history = [0] * (self.his_size - len(history)) + history[:self.his_size]
-        history_reprs = [torch.zeros(768) if hid == 0 else self._title_reprs[hid] for hid in history]
+        #history_reprs = [torch.zeros(768) if hid == 0 else self._title_reprs[hid] for hid in history]
         history_mask = [1 if hid!=0 else 0 for hid in history]
 
         ids, labels = [], []
@@ -151,10 +151,11 @@ class MINDDataset(torch.utils.data.Dataset):
             ids.append(nid)
             labels.append(int(label))
           
-          candidate_reprs = [self._title_reprs[nid] for nid in ids]
+          #candidate_reprs = [self._title_reprs[nid] for nid in ids]
           # candidate_mask = [1 if candidate!='' else 0 for candidate in candidates] # don't think we need this
-
-          instance = {'history_reprs': history_reprs, 'history_mask': history_mask, 'candidate_reprs': candidate_reprs, 'labels': labels}
+          
+          instance = {'history_ids': history, 'history_mask': history_mask, 'candidates': ids, 'labels': labels}
+          #instance = {'history_reprs': history_reprs, 'history_mask': history_mask, 'candidate_reprs': candidate_reprs, 'labels': labels}
           self._processed_impressions.append(instance)
         else:
           pass #test set: TODO
