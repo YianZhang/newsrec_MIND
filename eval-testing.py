@@ -94,15 +94,15 @@ class NewsRec(torch.nn.Module):
     def masking(self, x, candidate_mask):
         mask = ((1 - candidate_mask) * -10000.0).to(dtype=next(self.parameters()).dtype)
         return x + mask
-
+    
     def predict(self, instance):
         print(instance['history_reprs'].shape, instance['history_mask'].shape, flush=True)
-        hr_shape, hm_shape = instance['history_reprs'].shape, instance['history_mask'].shape
+        hr_shape, hm_shape, cr_shape = instance['history_reprs'].shape, instance['history_mask'].shape, instance['candidate_reprs'].shape
         instance['history_reprs'] = instance['history_reprs'].view(1, hr_shape[0], hr_shape[1])
-        isntance['history_mask'] = instance['history_mask'].view(1, hm_shape[0])
+        instance['history_mask'] = instance['history_mask'].view(1, hm_shape[0])
         self_attended_his_reprs = self.news_MHA(instance['history_reprs'], instance['history_mask'])[0]
-        user_rerps = self.news_pooling(self_attended_his_reprs, instance['history_mask'])
-        scores = torch.bmm(instance['candidate_reprs'], user_reprs.view(user_reprs.shape[0], user_reprs.shape[1], 1)).squeeze(-1)
+        user_reprs = self.news_pooling(self_attended_his_reprs, instance['history_mask'])
+        scores = torch.bmm(instance['candidate_reprs'].view(1, cr_shape[0], cr_shape[1]), user_reprs.view(user_reprs.shape[0], user_reprs.shape[1], 1)).squeeze(-1)
         return scores
 
     def forward(self, x):
@@ -214,6 +214,14 @@ if __name__ == '__main__':
     #04/02: check nrms HPs; npratio
 
     lowest_loss = 100000
+
+    valid.encode_all_titles(model.news_encoder)
+    #print(valid._title_reprs)
+    print('finish encoding all the titles', flush = True)
+    valid.load_data_for_evaluation()
+    labels, preds = valid.get_predictions(model, ratio=0.1)
+    print(labels[:5], preds[:5])
+    '''
     for epoch in range(MAX_EPOCHS):
         #TODO: early stopping and checkpointing
         #TODO: shuffling
@@ -284,7 +292,7 @@ if __name__ == '__main__':
         valid_loss = valid_loss/int(len(valid_dataloader) * 0.3)
 
         print('end of epoch {}, full validation set loss: {}'.format(epoch, valid_loss), flush = True)
-        
+       ''' 
             
 
             

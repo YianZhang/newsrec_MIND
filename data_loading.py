@@ -162,13 +162,17 @@ class MINDDataset(torch.utils.data.Dataset):
 
         line = f.readline()
 
-  def get_predictions(self, model):
+  def get_predictions(self, model, ratio=1):
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    model = model.to(device)
+    model.eval()
     if self.subset == 'valid':
-      labels, preds = [], []
-      for instance in self._processed_impressions:
-        instance['candidate_reprs'] = [self._title_reprs[nid] for nid in instance['candidates']]
-        instance['history_reprs'] = [torch.zeros(768) if hid == 0 else self._title_reprs[hid] for hid in instance['history_ids']
-        labels.append(self._processed_impressions['labels'])
+      labels, preds = [], []  
+      for instance in self._processed_impressions[:int(ratio*len(self._processed_impressions))]:
+        instance['candidate_reprs'] = torch.stack([self._title_reprs[nid] for nid in instance['candidates']]).to(device)
+        instance['history_reprs'] = torch.stack([torch.zeros(768) if hid == 0 else self._title_reprs[hid] for hid in instance['history_ids']]).to(device)
+        instance['history_mask'] = torch.tensor(instance['history_mask']).to(device)
+        labels.append(instance['labels'])
         preds.append(model.predict(instance))
       return labels, preds
     else:
