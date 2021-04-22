@@ -44,9 +44,10 @@ if __name__ == '__main__':
     print('finish building the model', flush = True)
 
     try:
-        load_checkpoint(model, optimizer, device, args.checkpoint_name)
+        print(args.checkpoint_name)
+        load_checkpoint(model, map_location = device, path = args.checkpoint_name)
         print('checkpoint loaded', flush = True)
     except:
-        print('failed to load any checkpoints.', flush = True)
+        print('WARNING: failed to load any checkpoints.', flush = True)
     
     evaluate(valid, model, 0.1)
