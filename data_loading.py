@@ -167,7 +167,7 @@ class MINDDataset(torch.utils.data.Dataset):
       labels, preds = [], []
       for instance in self._processed_impressions:
         instance['candidate_reprs'] = [self._title_reprs[nid] for nid in instance['candidates']]
-        instance['history_reprs'] = [torch.zeros(768) if hid == 0 else self._title_reprs[hid] for hid in instance['history_ids']
+        instance['history_reprs'] = [torch.zeros(768) if hid == 0 else self._title_reprs[hid] for hid in instance['history_ids']]
         labels.append(self._processed_impressions['labels'])
         preds.append(model.predict(instance))
       return labels, preds
@@ -210,7 +210,7 @@ if __name__ == '__main__':
   from torch.utils.data import RandomSampler
   from torch.utils.data import DataLoader
 
-  my_ds = MINDDataset('train/news.tsv', 'train/behaviors.tsv',npratio=2, his_size=2, batch_size=2)
+  my_ds = MINDDataset('demo/train/news.tsv', 'demo/train/behaviors.tsv',npratio=2, his_size=2, batch_size=2)
   my_ds.load_data()
 
   train_sampler = RandomSampler(my_ds)
