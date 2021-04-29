@@ -6,7 +6,7 @@ def evaluate(dataset, model, ratio=1):
     dataset.load_data_for_evaluation()
     labels, preds = valid.get_predictions(model, ratio)
     metrics = ['group_auc', 'mean_mrr', 'ndcg@5', 'ndcg@10']
-    print(cal_metric(labels, preds, metrics))
+    return cal_metric(labels, preds, metrics)
     #print(labels[:5], preds[:5])
 
 

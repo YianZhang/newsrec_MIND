@@ -4,6 +4,7 @@ from torch import nn
 from transformers import AutoModel
 from transformers.models.bert.modeling_bert import BertSelfAttention
 from transformers import get_linear_schedule_with_warmup
+from evaluate import evaluate
 
 # program counter
 # AdamW, scheduler
@@ -214,7 +215,9 @@ if __name__ == '__main__':
 
     #04/02: check nrms HPs; npratio
 
-    lowest_loss = 100000
+    best_performance = -100000
+    KEY_METRIC = "group_auc"
+
     for epoch in range(MAX_EPOCHS):
         #TODO: early stopping and checkpointing
         #TODO: shuffling
@@ -265,10 +268,15 @@ if __name__ == '__main__':
 
                 valid_loss = valid_loss/int(len(valid_dataloader) * valid_used_ratio)
                 print('valid_loss: {}'.format(valid_loss), flush = True)
-                if valid_loss < lowest_loss:
-                    lowest_loss = valid_loss
+
+                evaluation_metrics = evaluate(valid, model, 0.5)
+                print(evaluation_metrics)
+                key_metric = evaluation_metrics[KEY_METRIC]
+                if key_metric > best_performance:
+                    best_performance = key_metric
                     save_checkpoint(epoch, model, optimizer, valid_loss, args.checkpoint_name)
 
+                print("Best {} score so far: {}".format(KEY_METRIC, best_performance))
                 model.train()
 
         print('end of epoch validating...', flush = True)
@@ -285,6 +293,7 @@ if __name__ == '__main__':
         valid_loss = valid_loss/int(len(valid_dataloader) * 0.3)
 
         print('end of epoch {}, full validation set loss: {}'.format(epoch, valid_loss), flush = True)
+        print(evaluate(valid, model, 1))
         
             
 
