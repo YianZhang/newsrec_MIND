@@ -146,6 +146,7 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoint_name', default = 'model.pt')
     parser.add_argument('--lr', default = 3e-5, type=float)
     parser.add_argument('--pretrained_model', default = 'bert-base-uncased')
+    parser.add_argument('--datasize', default = 'demo')
     args = parser.parse_args()
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -163,7 +164,7 @@ if __name__ == '__main__':
     from utils import Config, save_checkpoint, load_checkpoint
     from os import path
 
-    DATA_SIZE = "small" # demo, small, large
+    DATA_SIZE = args.datasize # demo, small, large
     train = MINDDataset(path.join(DATA_SIZE,'train/news.tsv'), path.join(DATA_SIZE,'train/behaviors.tsv'), batch_size=BATCH_SIZE, model=args.pretrained_model)
     train.load_data()
     train_sampler = RandomSampler(train)
@@ -202,10 +203,14 @@ if __name__ == '__main__':
 
     MAX_EPOCHS = 5
     lr = args.lr
-    num_warmup_steps = 10000 # bert 10,000 # I used 3000 for demo
+    num_warmup_steps = 3000 # bert 10,000 # I used 3000 for demo
     checkpointing_freq = 250 # for demo I used 200
-    # valid_used_ratio = 0.005 # small # out of 6962 * 16 # change when swtiching to large datasets!
-    valid_used_ratio = 0.003 # demo # out of 716 * 16 # for demo I used 0.02
+
+    if args.datasize == 'demo':
+        valid_loss_ratio = 0.02 # demo # out of 716 * 16 # for demo I used 0.02
+    elif args.datasize == 'small':
+        valid_loss_ratio = 0.003 # small # out of 6962 * 16
+    
 
     num_train_steps = MAX_EPOCHS*(len(train_dataloader) - 1) # to be further checked
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=0.01)
@@ -255,14 +260,14 @@ if __name__ == '__main__':
                 model.eval()
                 valid_loss = 0
                 for batch_id, data_batch in enumerate(valid_dataloader):
-                    if batch_id == int(len(valid_dataloader) * valid_used_ratio):
+                    if batch_id == int(len(valid_dataloader) * valid_loss_ratio):
                         break
                     data_batch = data_batch.to(device)
                     y_pred = model(data_batch)
                     loss = criterion(y_pred, labels)
                     valid_loss += loss.item()
 
-                valid_loss = valid_loss/int(len(valid_dataloader) * valid_used_ratio)
+                valid_loss = valid_loss/int(len(valid_dataloader) * valid_loss_ratio)
                 print('valid_loss: {}'.format(valid_loss), flush = True)
 
                 evaluation_metrics = evaluate(valid, model, 0.3)
