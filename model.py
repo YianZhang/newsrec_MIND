@@ -115,7 +115,11 @@ class NewsRec(torch.nn.Module):
         his_indices = torch.nonzero(labels == -1, as_tuple = True)[0]
         impr_indices = torch.nonzero(labels != -1, as_tuple = True)[0]
         
-        news_reprs = self.news_encoder(**x).pooler_output
+        if self.ht_model == 'bert-base-uncased':
+            news_reprs = self.news_encoder(**x).pooler_output
+        elif self.ht_model == 'distilbert-base-uncased':
+            news_reprs = self.news_encoder(**x).last_hidden_state[:,0,:]
+
         his_reprs = news_reprs[his_indices].view(batch_size, -1, news_reprs.shape[-1])
         # impr_labels = labels[impr_indices].view(batch_size, -1)
         impr_reprs = news_reprs[impr_indices].view(batch_size, -1, news_reprs.shape[-1])
