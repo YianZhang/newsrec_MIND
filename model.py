@@ -89,6 +89,7 @@ class Attention_pooling(torch.nn.Module):
 class NewsRec(torch.nn.Module):
     def __init__(self, self_attention_config, ht_model='bert-base-uncased'):
         super().__init__()
+        self.ht_model = ht_model
         self.news_encoder = AutoModel.from_pretrained(ht_model)
         self.news_MHA = MySelfAttention(self_attention_config)
         self.news_pooling = Attention_pooling(self.news_encoder.config.hidden_size)
