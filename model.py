@@ -156,12 +156,15 @@ if __name__ == '__main__':
     # position embedding related HPs are useless.
     if args.pretrained_model == 'bert-base-uncased':
         BATCH_SIZE = 3 # 6 works for demo, not for large
+        HIDDEN_SIZE = 768
     elif args.pretrained_model == 'distilbert-base-uncased':
         BATCH_SIZE = 12
+        HIDDEN_SIZE = 768
     elif args.pretrained_model == 'prajjwal1/bert-tiny':
         BATCH_SIZE = 24
+        HIDDEN_SIZE = 128
         
-    self_attention_hyperparameters = {'num_attention_heads' : 16, 'hidden_size' : 768, 'attention_probs_dropout_prob': 0.2, 'max_position_embeddings': 4, 'is_decoder': False, 'position_embedding_type' : None}
+    self_attention_hyperparameters = {'num_attention_heads' : 16, 'hidden_size' : HIDDEN_SIZE, 'attention_probs_dropout_prob': 0.2, 'max_position_embeddings': 4, 'is_decoder': False, 'position_embedding_type' : None}
     assert self_attention_hyperparameters['hidden_size'] % self_attention_hyperparameters['num_attention_heads'] == 0
     # get data
     from data_loading import MINDDataset
