@@ -116,7 +116,7 @@ class NewsRec(torch.nn.Module):
         his_indices = torch.nonzero(labels == -1, as_tuple = True)[0]
         impr_indices = torch.nonzero(labels != -1, as_tuple = True)[0]
         
-        if self.ht_model == 'bert-base-uncased':
+        if self.ht_model == 'bert-base-uncased' or self.ht_model.startswith('prajjwal1/bert'):
             news_reprs = self.news_encoder(**x).pooler_output
         elif self.ht_model == 'distilbert-base-uncased':
             news_reprs = self.news_encoder(**x).last_hidden_state[:,0,:]
@@ -154,7 +154,13 @@ if __name__ == '__main__':
 
     # model HPs
     # position embedding related HPs are useless.
-    BATCH_SIZE = 3 # 6 works for demo, not for large
+    if args.pretrained_model == 'bert-base-uncased':
+        BATCH_SIZE = 3 # 6 works for demo, not for large
+    elif args.pretrained_model == 'distilbert-base-uncased':
+        BATCH_SIZE = 12
+    elif args.pretrained_model == 'prajjwal1/bert-tiny':
+        BATCH_SIZE = 24
+        
     self_attention_hyperparameters = {'num_attention_heads' : 16, 'hidden_size' : 768, 'attention_probs_dropout_prob': 0.2, 'max_position_embeddings': 4, 'is_decoder': False, 'position_embedding_type' : None}
     assert self_attention_hyperparameters['hidden_size'] % self_attention_hyperparameters['num_attention_heads'] == 0
     # get data
