@@ -56,4 +56,4 @@ if __name__ == '__main__':
     except:
         print('WARNING: failed to load any checkpoints.', flush = True)
     
-    evaluate(valid, model, 0.1)
+    evaluate(valid, model, 1)

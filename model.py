@@ -102,7 +102,7 @@ class NewsRec(torch.nn.Module):
         candidate_reprs = instance['candidate_reprs'].view(1, cr_shape[0], cr_shape[1])
         self_attended_his_reprs = self.news_MHA(history_reprs, history_mask)[0] # self-attention
         user_reprs = self.news_pooling(self_attended_his_reprs, history_mask) # attention pooling
-        scores = torch.bmm(candidate_reprs, user_reprs.view(user_reprs.shape[0], user_reprs.shape[1], 1)).data.squeeze(-1) # dot product
+        scores = torch.bmm(candidate_reprs, user_reprs.view(user_reprs.shape[0], user_reprs.shape[1], 1)).data.flatten().to('cpu') # dot product
         return scores
 
     def forward(self, x):
@@ -138,6 +138,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--checkpoint_name', default = 'model.pt')
+    parser.add_argument('--lr', default = 3e-5, type=float)
     args = parser.parse_args()
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -193,7 +194,7 @@ if __name__ == '__main__':
     # dropout: 0.1
 
     MAX_EPOCHS = 5
-    lr = 3e-5
+    lr = args.lr
     num_warmup_steps = 3000 # bert 10,000
     checkpointing_freq = 200
     # valid_used_ratio = 0.005 # small # out of 6962 * 16 # change when swtiching to large datasets!

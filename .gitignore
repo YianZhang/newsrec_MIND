@@ -1,5 +1,6 @@
-train/
-valid/
+large/
+demo/
+small/
 transformers/
 utils/
 *.pt

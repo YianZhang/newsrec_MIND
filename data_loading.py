@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 import random
 from transformers import BertTokenizer
 
@@ -172,8 +173,8 @@ class MINDDataset(torch.utils.data.Dataset):
         instance['candidate_reprs'] = torch.stack([self._title_reprs[nid] for nid in instance['candidates']]).to(device)
         instance['history_reprs'] = torch.stack([torch.zeros(768) if hid == 0 else self._title_reprs[hid] for hid in instance['history_ids']]).to(device)
         instance['history_mask'] = torch.tensor(instance['history_mask']).to(device)
-        labels.append(instance['labels'])
-        preds.append(model.predict(instance))
+        labels.append(np.array(instance['labels']))
+        preds.append(model.predict(instance).numpy())
       return labels, preds
     else:
       pass
