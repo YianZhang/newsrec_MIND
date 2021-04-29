@@ -6,9 +6,10 @@ from transformers.models.bert.modeling_bert import BertSelfAttention
 from transformers import get_linear_schedule_with_warmup
 from evaluate import evaluate
 
-# program counter
-# AdamW, scheduler
+# TODO List:
 # most recent history + position embedding
+# the init func of MySelfAttention
+# 
 
 class MySelfAttention(BertSelfAttention):
   # init: (self, config)
@@ -107,7 +108,6 @@ class NewsRec(torch.nn.Module):
         return scores
 
     def forward(self, x):
-        #print(x.keys())
         batch_size = x['candidate_mask'].shape[0]
         labels, candidate_mask, history_mask = x['labels'], x['candidate_mask'], x['history_mask']
         del x['labels']; del x['candidate_mask']; del x['history_mask']
@@ -213,22 +213,11 @@ if __name__ == '__main__':
     except:
         print('failed to load any checkpoints.', flush = True)
 
-    #04/02: check nrms HPs; npratio
-
     best_performance = -100000
     KEY_METRIC = "group_auc"
     no_improvement = 0
 
     for epoch in range(MAX_EPOCHS):
-        #TODO: early stopping and checkpointing
-        #TODO: shuffling
-         # transformers AdamW (opt), scheduler (get linear schedule with warmup from transformers)
-            # cross-entropy by batch?
-            # clipping
-            # shuffling will slow things down
-            # early stopping using metrics
-            # lr, batch_size, max_epochs, 
-            # bert config HPs
         total_loss = 0
         model.train()
 
