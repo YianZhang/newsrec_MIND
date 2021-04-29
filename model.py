@@ -140,6 +140,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--checkpoint_name', default = 'model.pt')
     parser.add_argument('--lr', default = 3e-5, type=float)
+    parser.add_argument('--pretrained_model', default = 'bert-base-uncased')
     args = parser.parse_args()
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -182,7 +183,7 @@ if __name__ == '__main__':
 
     # build the model
     self_attention_config = Config(self_attention_hyperparameters)
-    model = NewsRec(self_attention_config).to(device)
+    model = NewsRec(self_attention_config, args.pretrained_model).to(device)
 
     print('finish building the model', flush = True)
 
