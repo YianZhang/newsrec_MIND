@@ -157,7 +157,7 @@ if __name__ == '__main__':
     from utils import Config, save_checkpoint, load_checkpoint
     from os import path
 
-    DATA_SIZE = "demo" # demo, small, complete
+    DATA_SIZE = "large" # demo, small, large
     train = MINDDataset(path.join(DATA_SIZE,'train/news.tsv'), path.join(DATA_SIZE,'train/behaviors.tsv'), batch_size=BATCH_SIZE)
     train.load_data()
     train_sampler = RandomSampler(train)
@@ -196,10 +196,10 @@ if __name__ == '__main__':
 
     MAX_EPOCHS = 5
     lr = args.lr
-    num_warmup_steps = 3000 # bert 10,000
-    checkpointing_freq = 200
+    num_warmup_steps = 10000 # bert 10,000 # I used 3000 for demo
+    checkpointing_freq = 500 # for demo I used 200
     # valid_used_ratio = 0.005 # small # out of 6962 * 16 # change when swtiching to large datasets!
-    valid_used_ratio = 0.02 # demo # out of 716 * 16
+    valid_used_ratio = 0.001 # demo # out of 716 * 16 # for demo I used 0.02
 
     num_train_steps = MAX_EPOCHS*(len(train_dataloader) - 1) # to be further checked
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=0.01)
@@ -217,6 +217,7 @@ if __name__ == '__main__':
 
     best_performance = -100000
     KEY_METRIC = "group_auc"
+    no_improvement = 0
 
     for epoch in range(MAX_EPOCHS):
         #TODO: early stopping and checkpointing
@@ -269,28 +270,31 @@ if __name__ == '__main__':
                 valid_loss = valid_loss/int(len(valid_dataloader) * valid_used_ratio)
                 print('valid_loss: {}'.format(valid_loss), flush = True)
 
-                evaluation_metrics = evaluate(valid, model, 0.5)
+                evaluation_metrics = evaluate(valid, model, 0.3)
                 print(evaluation_metrics)
                 key_metric = evaluation_metrics[KEY_METRIC]
                 if key_metric > best_performance:
                     best_performance = key_metric
                     save_checkpoint(epoch, model, optimizer, valid_loss, args.checkpoint_name)
+                    no_improvement = 0
+                else:
+                    no_improvement +=1
 
-                print("Best {} score so far: {}".format(KEY_METRIC, best_performance))
+                print("Best {} score so far: {}, no improvement for {} updates".format(KEY_METRIC, best_performance, no_improvement))
                 model.train()
 
         print('end of epoch validating...', flush = True)
         model.eval()
         valid_loss = 0
         for batch_id, data_batch in enumerate(valid_dataloader):
-            if batch_id == int(len(valid_dataloader) * 0.3):
+            if batch_id == int(len(valid_dataloader) * 0.05):
                 break
             data_batch = data_batch.to(device)
             y_pred = model(data_batch)
             loss = criterion(y_pred, labels)
             valid_loss += loss.item()
 
-        valid_loss = valid_loss/int(len(valid_dataloader) * 0.3)
+        valid_loss = valid_loss/int(len(valid_dataloader) * 0.05)
 
         print('end of epoch {}, full validation set loss: {}'.format(epoch, valid_loss), flush = True)
         print(evaluate(valid, model, 1))

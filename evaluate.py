@@ -28,7 +28,7 @@ if __name__ == '__main__':
     from torch.utils.data import DataLoader
     from utils import Config, save_checkpoint, load_checkpoint
     from os import path
-    DATA_SIZE = "demo" # demo, small, complete
+    DATA_SIZE = "demo" # demo, small, large
 
     valid = MINDDataset(path.join(DATA_SIZE,'valid/news.tsv'), path.join(DATA_SIZE,'valid/behaviors.tsv'), subset='valid')
     valid.load_data()
