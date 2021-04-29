@@ -271,7 +271,7 @@ if __name__ == '__main__':
                 print('valid_loss: {}'.format(valid_loss), flush = True)
 
                 evaluation_metrics = evaluate(valid, model, 0.3)
-                print(evaluation_metrics)
+                print(evaluation_metrics, flush = True)
                 key_metric = evaluation_metrics[KEY_METRIC]
                 if key_metric > best_performance:
                     best_performance = key_metric
@@ -280,7 +280,7 @@ if __name__ == '__main__':
                 else:
                     no_improvement +=1
 
-                print("Best {} score so far: {}, no improvement for {} updates".format(KEY_METRIC, best_performance, no_improvement))
+                print("Best {} score so far: {}, no improvement for {} updates".format(KEY_METRIC, best_performance, no_improvement), flush = True)
                 model.train()
 
         print('end of epoch validating...', flush = True)
@@ -297,7 +297,7 @@ if __name__ == '__main__':
         valid_loss = valid_loss/int(len(valid_dataloader) * 0.05)
 
         print('end of epoch {}, full validation set loss: {}'.format(epoch, valid_loss), flush = True)
-        print(evaluate(valid, model, 1))
+        print(evaluate(valid, model, 1), flush = True)
         
             
 
