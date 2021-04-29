@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import random
-from transformers import BertTokenizer
+from transformers import BertTokenizer, DistilBertTokenizer
 
 class MINDDataset(torch.utils.data.Dataset):
   def __init__(self, news_file, behavior_file, npratio=4, his_size=50, col_spliter="\t", ID_spliter="%", 
@@ -26,7 +26,10 @@ class MINDDataset(torch.utils.data.Dataset):
     self.news_file = news_file
     self.behavior_file = behavior_file
 
-    self.tokenizer = BertTokenizer.from_pretrained(self.model) # assuming the model type is bert
+    if model.startswith('bert'):
+      self.tokenizer = BertTokenizer.from_pretrained(self.model)
+    elif model.startswith('distilbert'):
+      self.tokenizer = DistilBertTokenizer.from_pretrained(self.model)
   
   def init_titles(self):
     """ get news titles from news_file."""
