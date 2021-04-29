@@ -147,6 +147,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', default = 3e-5, type=float)
     parser.add_argument('--pretrained_model', default = 'bert-base-uncased')
     parser.add_argument('--datasize', default = 'demo')
+    parser.add_argument('--warmup_steps', type=int, default = 3000)
     args = parser.parse_args()
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -211,7 +212,7 @@ if __name__ == '__main__':
     # dropout: 0.1
 
     lr = args.lr
-    num_warmup_steps = 3000 # bert 10,000 # I used 3000 for demo
+    num_warmup_steps = args.warmup_steps # bert 10,000 # I used 3000 for demo
     checkpointing_freq = 250 # for demo I used 200
 
     if args.datasize == 'demo':
