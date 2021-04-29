@@ -127,6 +127,10 @@ class MINDDataset(torch.utils.data.Dataset):
 
     assert self.subset == 'valid' or 'test' # only the validation and the test sets are legal
 
+    if self._processed_impressions != []:
+      print('Impressions already processed.', flush = True)
+      return
+
     if not hasattr(self, '_titles'):
       self.init_titles()
     
