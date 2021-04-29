@@ -147,7 +147,7 @@ if __name__ == '__main__':
 
     # model HPs
     # position embedding related HPs are useless.
-    BATCH_SIZE = 6
+    BATCH_SIZE = 3 # 6 works for demo, not for large
     self_attention_hyperparameters = {'num_attention_heads' : 16, 'hidden_size' : 768, 'attention_probs_dropout_prob': 0.2, 'max_position_embeddings': 4, 'is_decoder': False, 'position_embedding_type' : None}
     assert self_attention_hyperparameters['hidden_size'] % self_attention_hyperparameters['num_attention_heads'] == 0
     # get data
@@ -157,7 +157,7 @@ if __name__ == '__main__':
     from utils import Config, save_checkpoint, load_checkpoint
     from os import path
 
-    DATA_SIZE = "large" # demo, small, large
+    DATA_SIZE = "small" # demo, small, large
     train = MINDDataset(path.join(DATA_SIZE,'train/news.tsv'), path.join(DATA_SIZE,'train/behaviors.tsv'), batch_size=BATCH_SIZE)
     train.load_data()
     train_sampler = RandomSampler(train)
@@ -197,9 +197,9 @@ if __name__ == '__main__':
     MAX_EPOCHS = 5
     lr = args.lr
     num_warmup_steps = 10000 # bert 10,000 # I used 3000 for demo
-    checkpointing_freq = 500 # for demo I used 200
+    checkpointing_freq = 250 # for demo I used 200
     # valid_used_ratio = 0.005 # small # out of 6962 * 16 # change when swtiching to large datasets!
-    valid_used_ratio = 0.001 # demo # out of 716 * 16 # for demo I used 0.02
+    valid_used_ratio = 0.003 # demo # out of 716 * 16 # for demo I used 0.02
 
     num_train_steps = MAX_EPOCHS*(len(train_dataloader) - 1) # to be further checked
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=0.01)
@@ -287,14 +287,14 @@ if __name__ == '__main__':
         model.eval()
         valid_loss = 0
         for batch_id, data_batch in enumerate(valid_dataloader):
-            if batch_id == int(len(valid_dataloader) * 0.05):
+            if batch_id == int(len(valid_dataloader) * 0.1):
                 break
             data_batch = data_batch.to(device)
             y_pred = model(data_batch)
             loss = criterion(y_pred, labels)
             valid_loss += loss.item()
 
-        valid_loss = valid_loss/int(len(valid_dataloader) * 0.05)
+        valid_loss = valid_loss/int(len(valid_dataloader) * 0.1)
 
         print('end of epoch {}, full validation set loss: {}'.format(epoch, valid_loss), flush = True)
         print(evaluate(valid, model, 1), flush = True)
