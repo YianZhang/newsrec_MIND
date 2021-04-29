@@ -201,15 +201,16 @@ if __name__ == '__main__':
     # number of epochs: 2,3,4
     # dropout: 0.1
 
-    MAX_EPOCHS = 5
     lr = args.lr
     num_warmup_steps = 3000 # bert 10,000 # I used 3000 for demo
     checkpointing_freq = 250 # for demo I used 200
 
     if args.datasize == 'demo':
         valid_loss_ratio = 0.02 # demo # out of 716 * 16 # for demo I used 0.02
+        MAX_EPOCHS = 5
     elif args.datasize == 'small':
         valid_loss_ratio = 0.003 # small # out of 6962 * 16
+        MAX_EPOCHS = 3
     
 
     num_train_steps = MAX_EPOCHS*(len(train_dataloader) - 1) # to be further checked
