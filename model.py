@@ -116,7 +116,7 @@ class NewsRec(torch.nn.Module):
         his_indices = torch.nonzero(labels == -1, as_tuple = True)[0]
         impr_indices = torch.nonzero(labels != -1, as_tuple = True)[0]
         
-        if self.ht_model == 'bert-base-uncased':
+        if self.ht_model == 'bert-base-uncased' or self.ht_model.startswith('prajjwal1/bert'):
             news_reprs = self.news_encoder(**x).pooler_output
         elif self.ht_model == 'distilbert-base-uncased':
             news_reprs = self.news_encoder(**x).last_hidden_state[:,0,:]
@@ -146,6 +146,7 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoint_name', default = 'model.pt')
     parser.add_argument('--lr', default = 3e-5, type=float)
     parser.add_argument('--pretrained_model', default = 'bert-base-uncased')
+    parser.add_argument('--datasize', default = 'demo')
     args = parser.parse_args()
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -153,7 +154,13 @@ if __name__ == '__main__':
 
     # model HPs
     # position embedding related HPs are useless.
-    BATCH_SIZE = 3 # 6 works for demo, not for large
+    if args.pretrained_model == 'bert-base-uncased':
+        BATCH_SIZE = 3 # 6 works for demo, not for large
+    elif args.pretrained_model == 'distilbert-base-uncased':
+        BATCH_SIZE = 12
+    elif args.pretrained_model == 'prajjwal1/bert-tiny':
+        BATCH_SIZE = 24
+        
     self_attention_hyperparameters = {'num_attention_heads' : 16, 'hidden_size' : 768, 'attention_probs_dropout_prob': 0.2, 'max_position_embeddings': 4, 'is_decoder': False, 'position_embedding_type' : None}
     assert self_attention_hyperparameters['hidden_size'] % self_attention_hyperparameters['num_attention_heads'] == 0
     # get data
@@ -163,7 +170,7 @@ if __name__ == '__main__':
     from utils import Config, save_checkpoint, load_checkpoint
     from os import path
 
-    DATA_SIZE = "small" # demo, small, large
+    DATA_SIZE = args.datasize # demo, small, large
     train = MINDDataset(path.join(DATA_SIZE,'train/news.tsv'), path.join(DATA_SIZE,'train/behaviors.tsv'), batch_size=BATCH_SIZE, model=args.pretrained_model)
     train.load_data()
     train_sampler = RandomSampler(train)
@@ -200,12 +207,17 @@ if __name__ == '__main__':
     # number of epochs: 2,3,4
     # dropout: 0.1
 
-    MAX_EPOCHS = 5
     lr = args.lr
-    num_warmup_steps = 10000 # bert 10,000 # I used 3000 for demo
+    num_warmup_steps = 3000 # bert 10,000 # I used 3000 for demo
     checkpointing_freq = 250 # for demo I used 200
-    # valid_used_ratio = 0.005 # small # out of 6962 * 16 # change when swtiching to large datasets!
-    valid_used_ratio = 0.003 # demo # out of 716 * 16 # for demo I used 0.02
+
+    if args.datasize == 'demo':
+        valid_loss_ratio = 0.02 # demo # out of 716 * 16 # for demo I used 0.02
+        MAX_EPOCHS = 5
+    elif args.datasize == 'small':
+        valid_loss_ratio = 0.003 # small # out of 6962 * 16
+        MAX_EPOCHS = 3
+    
 
     num_train_steps = MAX_EPOCHS*(len(train_dataloader) - 1) # to be further checked
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=0.01)
@@ -255,14 +267,14 @@ if __name__ == '__main__':
                 model.eval()
                 valid_loss = 0
                 for batch_id, data_batch in enumerate(valid_dataloader):
-                    if batch_id == int(len(valid_dataloader) * valid_used_ratio):
+                    if batch_id == int(len(valid_dataloader) * valid_loss_ratio):
                         break
                     data_batch = data_batch.to(device)
                     y_pred = model(data_batch)
                     loss = criterion(y_pred, labels)
                     valid_loss += loss.item()
 
-                valid_loss = valid_loss/int(len(valid_dataloader) * valid_used_ratio)
+                valid_loss = valid_loss/int(len(valid_dataloader) * valid_loss_ratio)
                 print('valid_loss: {}'.format(valid_loss), flush = True)
 
                 evaluation_metrics = evaluate(valid, model, 0.3)

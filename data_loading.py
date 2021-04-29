@@ -26,7 +26,7 @@ class MINDDataset(torch.utils.data.Dataset):
     self.news_file = news_file
     self.behavior_file = behavior_file
 
-    if model.startswith('bert'):
+    if model.startswith('bert') or self.model.startswith('prajjwal1/bert'):
       self.tokenizer = BertTokenizer.from_pretrained(self.model)
     elif model.startswith('distilbert'):
       self.tokenizer = DistilBertTokenizer.from_pretrained(self.model)
@@ -112,7 +112,7 @@ class MINDDataset(torch.utils.data.Dataset):
       if i % batch_size == 0:
         #print('batch', i//batch_size, flush=True)
         encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest").to(device) #tokenize
-        if self.model == 'bert-base-uncased':
+        if self.model == 'bert-base-uncased' or self.model.startswith('prajjwal1/bert'):
           batch_reprs = title_encoder(**encoder_input).pooler_output.data.to('cpu') #forward
         elif self.model == 'distilbert-base-uncased':
           batch_reprs = title_encoder(**encoder_input).last_hidden_state[:,0,:].data.to('cpu') #forward
@@ -123,7 +123,7 @@ class MINDDataset(torch.utils.data.Dataset):
 
     # forward and extend the rest titles
     encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest").to(device) #tokenize
-    if self.model == 'bert-base-uncased':
+    if self.model == 'bert-base-uncased' or self.model.startswith('prajjwal1/bert'):
       batch_reprs = title_encoder(**encoder_input).pooler_output.data.to('cpu') #forward
     elif self.model == 'distilbert-base-uncased':
       batch_reprs = title_encoder(**encoder_input).last_hidden_state[:,0,:].data.to('cpu') #forward
