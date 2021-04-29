@@ -43,7 +43,14 @@ if __name__ == '__main__':
 
     # build the model
     from model import NewsRec
-    self_attention_hyperparameters = {'num_attention_heads' : 16, 'hidden_size' : 768, 'attention_probs_dropout_prob': 0.2, 'max_position_embeddings': 4, 'is_decoder': False, 'position_embedding_type' : None}
+
+    if args.pretrained_model == 'bert-base-uncased':
+        HIDDEN_SIZE = 768
+    elif args.pretrained_model == 'distilbert-base-uncased':
+        HIDDEN_SIZE = 768
+    elif args.pretrained_model == 'prajjwal1/bert-tiny':
+        HIDDEN_SIZE = 128
+    self_attention_hyperparameters = {'num_attention_heads' : 16, 'hidden_size' : HIDDEN_SIZE, 'attention_probs_dropout_prob': 0.2, 'max_position_embeddings': 4, 'is_decoder': False, 'position_embedding_type' : None}
     assert self_attention_hyperparameters['hidden_size'] % self_attention_hyperparameters['num_attention_heads'] == 0
     self_attention_config = Config(self_attention_hyperparameters)
     model = NewsRec(self_attention_config).to(device)

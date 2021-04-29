@@ -184,7 +184,7 @@ class MINDDataset(torch.utils.data.Dataset):
       labels, preds = [], []  
       for instance in self._processed_impressions[:int(ratio*len(self._processed_impressions))]:
         instance['candidate_reprs'] = torch.stack([self._title_reprs[nid] for nid in instance['candidates']]).to(device)
-        instance['history_reprs'] = torch.stack([torch.zeros(768) if hid == 0 else self._title_reprs[hid] for hid in instance['history_ids']]).to(device)
+        instance['history_reprs'] = torch.stack([torch.zeros(model.news_encoder.config.hidden_size) if hid == 0 else self._title_reprs[hid] for hid in instance['history_ids']]).to(device)
         instance['history_mask'] = torch.tensor(instance['history_mask']).to(device)
         labels.append(np.array(instance['labels']))
         preds.append(model.predict(instance).numpy())
