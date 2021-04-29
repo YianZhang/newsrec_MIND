@@ -112,7 +112,10 @@ class MINDDataset(torch.utils.data.Dataset):
       if i % batch_size == 0:
         #print('batch', i//batch_size, flush=True)
         encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest").to(device) #tokenize
-        batch_reprs = title_encoder(**encoder_input).pooler_output.data.to('cpu') #forward
+        if self.model == 'bert-base-uncased':
+          batch_reprs = title_encoder(**encoder_input).pooler_output.data.to('cpu') #forward
+        elif self.model == 'distilbert-base-uncased':
+          batch_reprs = title_encoder(**encoder_input).last_hidden_state[:,0,:].data.to('cpu') #forward
         indices.extend(batch_indices)
         reprs.extend(batch_reprs)
         #print(len(reprs), len(reprs[0]))
@@ -120,7 +123,10 @@ class MINDDataset(torch.utils.data.Dataset):
 
     # forward and extend the rest titles
     encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest").to(device) #tokenize
-    batch_reprs = title_encoder(**encoder_input).pooler_output.data.to('cpu') #forward
+    if self.model == 'bert-base-uncased':
+      batch_reprs = title_encoder(**encoder_input).pooler_output.data.to('cpu') #forward
+    elif self.model == 'distilbert-base-uncased':
+      batch_reprs = title_encoder(**encoder_input).last_hidden_state[:,0,:].data.to('cpu') #forward
     indices.extend(batch_indices)
     reprs.extend(batch_reprs)
     self._title_reprs = dict(zip(indices, reprs))
