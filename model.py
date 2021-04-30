@@ -152,6 +152,7 @@ if __name__ == '__main__':
     parser.add_argument('--datasize', default = 'demo')
     parser.add_argument('--warmup_steps', type = int, default = 3000)
     parser.add_argument('--attn_dropout', type = float, default = 0.2)
+    parser.add_argument('--patience', type = int, default = -1)
     args = parser.parse_args()
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -242,8 +243,11 @@ if __name__ == '__main__':
     best_performance = -100000
     KEY_METRIC = "group_auc"
     no_improvement = 0
+    early_stop_now = False
 
     for epoch in range(MAX_EPOCHS):
+        if early_stop_now:
+            break
         total_loss = 0
         model.train()
 
@@ -294,6 +298,9 @@ if __name__ == '__main__':
                     no_improvement = 0
                 else:
                     no_improvement +=1
+                    if no_improvement > args.patience > 0:
+                        early_stop_now = True
+                        break
 
                 print("Best {} score so far: {}, no improvement for {} updates".format(KEY_METRIC, best_performance, no_improvement), flush = True)
                 model.train()
@@ -313,6 +320,9 @@ if __name__ == '__main__':
 
         print('end of epoch {}, full validation set loss: {}'.format(epoch, valid_loss), flush = True)
         print(evaluate(valid, model, 1), flush = True)
+
+        if early_stop_now:
+            print('The training is terminated by early stopping.', flush = True)
         
             
 
