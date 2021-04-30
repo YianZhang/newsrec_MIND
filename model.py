@@ -321,8 +321,8 @@ if __name__ == '__main__':
         print('end of epoch {}, full validation set loss: {}'.format(epoch, valid_loss), flush = True)
         print(evaluate(valid, model, 1), flush = True)
 
-        if early_stop_now:
-            print('The training is terminated by early stopping.', flush = True)
+    if early_stop_now:
+        print('The training is terminated by early stopping.', flush = True)
         
             
 
