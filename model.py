@@ -6,6 +6,13 @@ from transformers.models.bert.modeling_bert import BertSelfAttention
 from transformers import get_linear_schedule_with_warmup
 from evaluate import evaluate
 
+# multi-GPU:
+# Device 还是 cuda0. 还是to(device)
+# optimizer, scheduler 弄好之后加torch.nn.DataParallel
+# fp16
+
+# 热度
+
 # TODO List:
 # most recent history + position embedding
 # the init func of MySelfAttention
@@ -164,7 +171,7 @@ if __name__ == '__main__':
         BATCH_SIZE = 3 # 6 works for demo, not for large
         HIDDEN_SIZE = 768
     elif args.pretrained_model == 'distilbert-base-uncased':
-        BATCH_SIZE = 8
+        BATCH_SIZE = 8 # 12 does not work for small
         HIDDEN_SIZE = 768
     elif args.pretrained_model == 'prajjwal1/bert-tiny':
         BATCH_SIZE = 24
@@ -288,6 +295,9 @@ if __name__ == '__main__':
 
                 valid_loss = valid_loss/int(len(valid_dataloader) * valid_loss_ratio)
                 print('valid_loss: {}'.format(valid_loss), flush = True)
+                print('learning rates:', flush = True)
+                for param_group in optimizer.param_groups:
+                    print(param_group['lr'], end = ' ', flush = True)
 
                 evaluation_metrics = evaluate(valid, model, 0.3)
                 print(evaluation_metrics, flush = True)
@@ -321,8 +331,8 @@ if __name__ == '__main__':
         print('end of epoch {}, full validation set loss: {}'.format(epoch, valid_loss), flush = True)
         print(evaluate(valid, model, 1), flush = True)
 
-        if early_stop_now:
-            print('The training is terminated by early stopping.', flush = True)
+    if early_stop_now:
+        print('The training is terminated by early stopping.', flush = True)
         
             
 
