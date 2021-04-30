@@ -157,7 +157,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', default = 3e-5, type = float)
     parser.add_argument('--pretrained_model', default = 'bert-base-uncased')
     parser.add_argument('--datasize', default = 'demo')
-    parser.add_argument('--warmup_steps', type = int, default = 3000)
+    parser.add_argument('--warmup_ratio', type = float, default = 0.06)
     parser.add_argument('--attn_dropout', type = float, default = 0.2)
     parser.add_argument('--patience', type = int, default = -1)
     args = parser.parse_args()
@@ -224,7 +224,7 @@ if __name__ == '__main__':
     # dropout: 0.1
 
     lr = args.lr
-    num_warmup_steps = args.warmup_steps # bert 10,000 # I used 3000 for demo
+    # num_warmup_steps = args.warmup_steps # bert 10,000 # I used 3000 for demo
     checkpointing_freq = 250 # for demo I used 200
 
     if args.datasize == 'demo':
@@ -236,6 +236,8 @@ if __name__ == '__main__':
     
 
     num_train_steps = MAX_EPOCHS*(len(train_dataloader) - 1) # to be further checked
+    num_warmup_steps = num_train_steps * args.warmup_ratio
+    print("num_train_steps: {}, num_warmup_steps: {}".format(num_train_steps, num_warmup_steps))
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=0.01)
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps, num_train_steps)
     criterion = torch.nn.CrossEntropyLoss() # default reduction = "mean"
