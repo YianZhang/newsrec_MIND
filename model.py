@@ -163,7 +163,7 @@ if __name__ == '__main__':
         BATCH_SIZE = 3 # 6 works for demo, not for large
         HIDDEN_SIZE = 768
     elif args.pretrained_model == 'distilbert-base-uncased':
-        BATCH_SIZE = 12
+        BATCH_SIZE = 8
         HIDDEN_SIZE = 768
     elif args.pretrained_model == 'prajjwal1/bert-tiny':
         BATCH_SIZE = 24
