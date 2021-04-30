@@ -151,7 +151,7 @@ if __name__ == '__main__':
     parser.add_argument('--pretrained_model', default = 'bert-base-uncased')
     parser.add_argument('--datasize', default = 'demo')
     parser.add_argument('--warmup_steps', type = int, default = 3000)
-    parser.add_argument('--attn_dropout', type = float, default = 0)
+    parser.add_argument('--attn_dropout', type = float, default = 0.2)
     args = parser.parse_args()
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
