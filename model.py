@@ -13,6 +13,9 @@ from evaluate import evaluate
 
 class MySelfAttention(BertSelfAttention):
   # init: (self, config)
+  def __init__(self, config):
+        super().__init__(config)
+
   def convert_attention_mask(self, attention_mask):
         extended_attention_mask = attention_mask[:, None, None, :]
         return ((1-extended_attention_mask) * -10000.0).to(dtype=next(self.parameters()).dtype)
@@ -144,10 +147,11 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--checkpoint_name', default = 'model.pt')
-    parser.add_argument('--lr', default = 3e-5, type=float)
+    parser.add_argument('--lr', default = 3e-5, type = float)
     parser.add_argument('--pretrained_model', default = 'bert-base-uncased')
     parser.add_argument('--datasize', default = 'demo')
-    parser.add_argument('--warmup_steps', type=int, default = 3000)
+    parser.add_argument('--warmup_steps', type = int, default = 3000)
+    parser.add_argument('--attn_dropout', type = float, default = 0)
     args = parser.parse_args()
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -165,7 +169,7 @@ if __name__ == '__main__':
         BATCH_SIZE = 24
         HIDDEN_SIZE = 128
         
-    self_attention_hyperparameters = {'num_attention_heads' : 16, 'hidden_size' : HIDDEN_SIZE, 'attention_probs_dropout_prob': 0.2, 'max_position_embeddings': 4, 'is_decoder': False, 'position_embedding_type' : None}
+    self_attention_hyperparameters = {'num_attention_heads' : 16, 'hidden_size' : HIDDEN_SIZE, 'attention_probs_dropout_prob': args.attn_dropout, 'max_position_embeddings': 4, 'is_decoder': False, 'position_embedding_type' : None,}
     assert self_attention_hyperparameters['hidden_size'] % self_attention_hyperparameters['num_attention_heads'] == 0
     # get data
     from data_loading import MINDDataset
