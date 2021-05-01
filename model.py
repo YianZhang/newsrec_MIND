@@ -98,12 +98,14 @@ class Pseudo_MLP_Scorer(torch.nn.Module):
     def __init__(self, dim1, dim2, dropout = 0.2):
         super().__init__()
         self.linear1 = nn.Linear(dim1, dim2)
-        self.linear2 = nn.Linear(dim2, 1)
-        self.dropout = nn.Dropout(dropout)
+        self.linear2 = nn.Linear(dim2, dim3)
+        self.linear3 = nn.Linear(dim3, 1)
+        #self.dropout = nn.Dropout(dropout)
         self.activation = nn.ReLU()
 
     def forward(self, x):
-        return self.linear2(self.activation(self.dropout(self.linear1(x))))
+        #return self.linear2(self.activation(self.dropout(self.linear1(x))))
+        return self.linear3(self.activation(self.linear2(self.activation(self.linear1(x)))))
 
 class NewsRec(torch.nn.Module):
     def __init__(self, self_attention_config, ht_model='bert-base-uncased'):
@@ -112,7 +114,7 @@ class NewsRec(torch.nn.Module):
         self.news_encoder = AutoModel.from_pretrained(ht_model)
         self.news_MHA = MySelfAttention(self_attention_config)
         self.news_pooling = Attention_pooling(self.news_encoder.config.hidden_size)
-        self.pseudo_MLP_scorer = Pseudo_MLP_Scorer(self.news_encoder.config.hidden_size*2, self.news_encoder.config.hidden_size)
+        self.pseudo_MLP_scorer = Pseudo_MLP_Scorer(self.news_encoder.config.hidden_size*2, self.news_encoder.config.hidden_size, self.news_encoder.config.hidden_size//2)
     
     def masking(self, x, candidate_mask):
         mask = ((1 - candidate_mask) * -10000.0).to(dtype=next(self.parameters()).dtype)
