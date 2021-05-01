@@ -167,6 +167,8 @@ class NewsRec(torch.nn.Module):
 
 if __name__ == '__main__':
 
+    torch.manual_seed(42) # for reproducibility
+
     import argparse
 
     parser = argparse.ArgumentParser()
