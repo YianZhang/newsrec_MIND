@@ -111,6 +111,9 @@ class NewsRec(torch.nn.Module):
     def dot_product_score(self, candidate_reprs, user_reprs):
         return torch.bmm(candidate_reprs, user_reprs.view(user_reprs.shape[0], user_reprs.shape[1], 1))
 
+    def pseudo_MLP_score(self, candidate_reprs, user_reprs):
+        pass
+
     def predict(self, instance):
         hr_shape, hm_shape, cr_shape = instance['history_reprs'].shape, instance['history_mask'].shape, instance['candidate_reprs'].shape # get shape for reshaping later
         history_reprs = instance['history_reprs'].view(1, hr_shape[0], hr_shape[1]) # reshape to match the input format
@@ -144,7 +147,7 @@ class NewsRec(torch.nn.Module):
 
         # print(user_reprs.shape, impr_reprs.shape) # checked. shapes are correct
 
-        scores = torch.bmm(impr_reprs, user_reprs.view(user_reprs.shape[0], user_reprs.shape[1], 1)).squeeze(-1)
+        scores = self.dot_product_score(impr_reprs, user_reprs).squeeze(-1)
 
         # print(user_reprs[1], impr_reprs[1][1], scores) # checked. bmm is correct.
 
