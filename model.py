@@ -95,7 +95,7 @@ class Attention_pooling(torch.nn.Module):
         return torch.sum(torch.mul(x, weights), dim=-2, keepdim=False) # batch, emb_size
 
 class Pseudo_MLP_Scorer(torch.nn.Module):
-    def __init__(self, dim1, dim2, dropout = 0.2):
+    def __init__(self, dim1, dim2, dim3, dropout = 0.2):
         super().__init__()
         self.linear1 = nn.Linear(dim1, dim2)
         self.linear2 = nn.Linear(dim2, dim3)
