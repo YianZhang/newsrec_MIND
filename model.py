@@ -108,6 +108,9 @@ class NewsRec(torch.nn.Module):
         mask = ((1 - candidate_mask) * -10000.0).to(dtype=next(self.parameters()).dtype)
         return x + mask
 
+    def dot_product_score(self, candidate_reprs, user_reprs):
+        return torch.bmm(candidate_reprs, user_reprs.view(user_reprs.shape[0], user_reprs.shape[1], 1))
+
     def predict(self, instance):
         hr_shape, hm_shape, cr_shape = instance['history_reprs'].shape, instance['history_mask'].shape, instance['candidate_reprs'].shape # get shape for reshaping later
         history_reprs = instance['history_reprs'].view(1, hr_shape[0], hr_shape[1]) # reshape to match the input format
@@ -115,7 +118,7 @@ class NewsRec(torch.nn.Module):
         candidate_reprs = instance['candidate_reprs'].view(1, cr_shape[0], cr_shape[1])
         self_attended_his_reprs = self.news_MHA(history_reprs, history_mask)[0] # self-attention
         user_reprs = self.news_pooling(self_attended_his_reprs, history_mask) # attention pooling
-        scores = torch.bmm(candidate_reprs, user_reprs.view(user_reprs.shape[0], user_reprs.shape[1], 1)).data.flatten().to('cpu') # dot product
+        scores = self.dot_product_score(candidate_reprs, user_reprs).data.flatten().to('cpu') # dot product
         return scores
 
     def forward(self, x):
