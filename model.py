@@ -94,7 +94,16 @@ class Attention_pooling(torch.nn.Module):
 
         return torch.sum(torch.mul(x, weights), dim=-2, keepdim=False) # batch, emb_size
 
+class Pseudo_MLP_Scorer(torch.nn.Module):
+    def __init__(self, dim1, dim2, dropout = 0.2):
+        super().__init__()
+        self.linear1 = nn.Linear(dim1, dim2)
+        self.linear2 = nn.Linear(dim2, 1)
+        self.dropout = nn.Dropout(dropout)
+        self.activation = nn.ReLU()
 
+    def forward(self, x):
+        return self.linear2(self.activation(self.dropout(self.linear1(x))))
 
 class NewsRec(torch.nn.Module):
     def __init__(self, self_attention_config, ht_model='bert-base-uncased'):
@@ -103,6 +112,7 @@ class NewsRec(torch.nn.Module):
         self.news_encoder = AutoModel.from_pretrained(ht_model)
         self.news_MHA = MySelfAttention(self_attention_config)
         self.news_pooling = Attention_pooling(self.news_encoder.config.hidden_size)
+        self.pseudo_MLP_scorer = Pseudo_MLP_Scorer(self.news_encoder.config.hidden_size*2, self.news_encoder.config.hidden_size)
     
     def masking(self, x, candidate_mask):
         mask = ((1 - candidate_mask) * -10000.0).to(dtype=next(self.parameters()).dtype)
@@ -112,7 +122,8 @@ class NewsRec(torch.nn.Module):
         return torch.bmm(candidate_reprs, user_reprs.view(user_reprs.shape[0], user_reprs.shape[1], 1))
 
     def pseudo_MLP_score(self, candidate_reprs, user_reprs):
-        pass
+        return self.pseudo_MLP_scorer(torch.cat((candidate_reprs, user_reprs.view(user_reprs.shape[0],1,user_reprs.shape[1]).expand((-1,candidate_reprs.shape[1],-1))), dim=2))
+        #return torch.cat((candidates, user.view(3,1,20).expand((-1,5,-1))), dim=2)
 
     def predict(self, instance):
         hr_shape, hm_shape, cr_shape = instance['history_reprs'].shape, instance['history_mask'].shape, instance['candidate_reprs'].shape # get shape for reshaping later
@@ -121,7 +132,7 @@ class NewsRec(torch.nn.Module):
         candidate_reprs = instance['candidate_reprs'].view(1, cr_shape[0], cr_shape[1])
         self_attended_his_reprs = self.news_MHA(history_reprs, history_mask)[0] # self-attention
         user_reprs = self.news_pooling(self_attended_his_reprs, history_mask) # attention pooling
-        scores = self.dot_product_score(candidate_reprs, user_reprs).data.flatten().to('cpu') # dot product
+        scores = self.pseudo_MLP_score(candidate_reprs, user_reprs).data.flatten().to('cpu') # dot product
         return scores
 
     def forward(self, x):
@@ -147,7 +158,7 @@ class NewsRec(torch.nn.Module):
 
         # print(user_reprs.shape, impr_reprs.shape) # checked. shapes are correct
 
-        scores = self.dot_product_score(impr_reprs, user_reprs).squeeze(-1)
+        scores = self.pseudo_MLP_score(impr_reprs, user_reprs).squeeze(-1)
 
         # print(user_reprs[1], impr_reprs[1][1], scores) # checked. bmm is correct.
 
