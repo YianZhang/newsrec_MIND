@@ -246,7 +246,7 @@ if __name__ == '__main__':
 
     # build the model
     self_attention_config = Config(self_attention_hyperparameters)
-    model = NewsRec(self_attention_config, args.pretrained_model).to(device)
+    model = NewsRec(self_attention_config, args.pretrained_model, args.scorer).to(device)
 
     print('finish building the model', flush = True)
 
