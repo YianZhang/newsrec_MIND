@@ -268,6 +268,9 @@ if __name__ == '__main__':
     elif args.datasize == 'small':
         valid_loss_ratio = 0.003 # small # out of 6962 * 16
         MAX_EPOCHS = 3
+    elif args.datasize == 'large':
+        valid_loss_ratio = 0.0005 
+        MAX_EPOCHS = 2
     
 
     num_train_steps = MAX_EPOCHS*(len(train_dataloader) - 1) # to be further checked
