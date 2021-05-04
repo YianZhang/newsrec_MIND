@@ -106,26 +106,39 @@ class Pseudo_MLP_Scorer(torch.nn.Module):
     def forward(self, x):
         #return self.linear2(self.activation(self.dropout(self.linear1(x))))
         return self.linear3(self.activation(self.dropout(self.linear2(self.activation(self.dropout(self.linear1(x)))))))
+    
+    def score(self, candidate_reprs, user_reprs):
+        return self.forward(torch.cat((candidate_reprs, user_reprs.view(user_reprs.shape[0],1,user_reprs.shape[1]).expand((-1,candidate_reprs.shape[1],-1))), dim=2))
+
+class Dot_Product_Scorer(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+    def forward(self, candidate_reprs, user_reprs):
+        return torch.bmm(candidate_reprs, user_reprs.view(user_reprs.shape[0], user_reprs.shape[1], 1))
+    def score(self, candidate_reprs, user_reprs):
+        return self.forward(candidate_reprs, user_reprs)
 
 class NewsRec(torch.nn.Module):
-    def __init__(self, self_attention_config, ht_model='bert-base-uncased'):
+    def __init__(self, self_attention_config, ht_model='bert-base-uncased', scorer = 'dot_product'):
         super().__init__()
         self.ht_model = ht_model
         self.news_encoder = AutoModel.from_pretrained(ht_model)
         self.news_MHA = MySelfAttention(self_attention_config)
         self.news_pooling = Attention_pooling(self.news_encoder.config.hidden_size)
-        self.pseudo_MLP_scorer = Pseudo_MLP_Scorer(self.news_encoder.config.hidden_size*2, self.news_encoder.config.hidden_size, self.news_encoder.config.hidden_size//2)
-    
+        if scorer == 'dot_product':
+            self.scorer = Dot_Product_Scorer()
+        elif scorer == 'pseudo_MLP':
+            self.scorer = Pseudo_MLP_Scorer(self.news_encoder.config.hidden_size*2, self.news_encoder.config.hidden_size, self.news_encoder.config.hidden_size//2)
+
     def masking(self, x, candidate_mask):
         mask = ((1 - candidate_mask) * -10000.0).to(dtype=next(self.parameters()).dtype)
         return x + mask
 
-    def dot_product_score(self, candidate_reprs, user_reprs):
-        return torch.bmm(candidate_reprs, user_reprs.view(user_reprs.shape[0], user_reprs.shape[1], 1))
+    # def dot_product_score(self, candidate_reprs, user_reprs):
+    #     return torch.bmm(candidate_reprs, user_reprs.view(user_reprs.shape[0], user_reprs.shape[1], 1))
 
-    def pseudo_MLP_score(self, candidate_reprs, user_reprs):
-        return self.pseudo_MLP_scorer(torch.cat((candidate_reprs, user_reprs.view(user_reprs.shape[0],1,user_reprs.shape[1]).expand((-1,candidate_reprs.shape[1],-1))), dim=2))
-        #return torch.cat((candidates, user.view(3,1,20).expand((-1,5,-1))), dim=2)
+    # def pseudo_MLP_score(self, candidate_reprs, user_reprs):
+    #     return self.pseudo_MLP_scorer(torch.cat((candidate_reprs, user_reprs.view(user_reprs.shape[0],1,user_reprs.shape[1]).expand((-1,candidate_reprs.shape[1],-1))), dim=2))
 
     def predict(self, instance):
         hr_shape, hm_shape, cr_shape = instance['history_reprs'].shape, instance['history_mask'].shape, instance['candidate_reprs'].shape # get shape for reshaping later
@@ -134,7 +147,7 @@ class NewsRec(torch.nn.Module):
         candidate_reprs = instance['candidate_reprs'].view(1, cr_shape[0], cr_shape[1])
         self_attended_his_reprs = self.news_MHA(history_reprs, history_mask)[0] # self-attention
         user_reprs = self.news_pooling(self_attended_his_reprs, history_mask) # attention pooling
-        scores = self.pseudo_MLP_score(candidate_reprs, user_reprs).data.flatten().to('cpu') # dot product
+        scores = self.scorer.score(candidate_reprs, user_reprs).data.flatten().to('cpu') # dot product
         return scores
 
     def forward(self, x):
@@ -160,7 +173,7 @@ class NewsRec(torch.nn.Module):
 
         # print(user_reprs.shape, impr_reprs.shape) # checked. shapes are correct
 
-        scores = self.pseudo_MLP_score(impr_reprs, user_reprs).squeeze(-1)
+        scores = self.scorer.score(impr_reprs, user_reprs).squeeze(-1)
 
         # print(user_reprs[1], impr_reprs[1][1], scores) # checked. bmm is correct.
 
@@ -181,6 +194,7 @@ if __name__ == '__main__':
     parser.add_argument('--warmup_ratio', type = float, default = 0.06)
     parser.add_argument('--attn_dropout', type = float, default = 0.2)
     parser.add_argument('--patience', type = int, default = -1)
+    parser.add_argument('--scorer', default = 'dot_product')
     args = parser.parse_args()
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
