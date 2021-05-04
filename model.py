@@ -246,7 +246,7 @@ if __name__ == '__main__':
 
     # build the model
     self_attention_config = Config(self_attention_hyperparameters)
-    model = NewsRec(self_attention_config, args.pretrained_model).to(device)
+    model = NewsRec(self_attention_config, args.pretrained_model, args.scorer).to(device)
 
     print('finish building the model', flush = True)
 
@@ -268,6 +268,9 @@ if __name__ == '__main__':
     elif args.datasize == 'small':
         valid_loss_ratio = 0.003 # small # out of 6962 * 16
         MAX_EPOCHS = 3
+    elif args.datasize == 'large':
+        valid_loss_ratio = 0.0005 
+        MAX_EPOCHS = 2
     
 
     num_train_steps = MAX_EPOCHS*(len(train_dataloader) - 1) # to be further checked
