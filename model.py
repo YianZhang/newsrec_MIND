@@ -211,6 +211,9 @@ if __name__ == '__main__':
     elif args.pretrained_model == 'prajjwal1/bert-tiny':
         BATCH_SIZE = 24
         HIDDEN_SIZE = 128
+    elif args.pretrained_model == 'prajjwal1/bert-mini':
+        BATCH_SIZE = 16
+        HIDDEN_SIZE = 256
         
     self_attention_hyperparameters = {'num_attention_heads' : 16, 'hidden_size' : HIDDEN_SIZE, 'attention_probs_dropout_prob': args.attn_dropout, 'max_position_embeddings': 4, 'is_decoder': False, 'position_embedding_type' : None,}
     assert self_attention_hyperparameters['hidden_size'] % self_attention_hyperparameters['num_attention_heads'] == 0
