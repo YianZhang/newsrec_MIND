@@ -211,6 +211,9 @@ if __name__ == '__main__':
     elif args.pretrained_model == 'prajjwal1/bert-tiny':
         BATCH_SIZE = 24
         HIDDEN_SIZE = 128
+    elif args.pretrained_model == 'prajjwal1/bert-mini':
+        BATCH_SIZE = 16
+        HIDDEN_SIZE = 256
         
     self_attention_hyperparameters = {'num_attention_heads' : 16, 'hidden_size' : HIDDEN_SIZE, 'attention_probs_dropout_prob': args.attn_dropout, 'max_position_embeddings': 4, 'is_decoder': False, 'position_embedding_type' : None,}
     assert self_attention_hyperparameters['hidden_size'] % self_attention_hyperparameters['num_attention_heads'] == 0
@@ -262,6 +265,7 @@ if __name__ == '__main__':
     # num_warmup_steps = args.warmup_steps # bert 10,000 # I used 3000 for demo
     checkpointing_freq = 250 # for demo I used 200
 
+    valid_metrics_ratio = (0.3, 1)
     if args.datasize == 'demo':
         valid_loss_ratio = 0.02 # demo # out of 716 * 16 # for demo I used 0.02
         MAX_EPOCHS = 5
@@ -271,6 +275,7 @@ if __name__ == '__main__':
     elif args.datasize == 'large':
         valid_loss_ratio = 0.0005 
         MAX_EPOCHS = 2
+        valid_metrics_ratio = (0.06, 0.2)
     
 
     num_train_steps = MAX_EPOCHS*(len(train_dataloader) - 1) # to be further checked
@@ -339,7 +344,7 @@ if __name__ == '__main__':
                 for param_group in optimizer.param_groups:
                     print(param_group['lr'], end = ' ', flush = True)
 
-                evaluation_metrics = evaluate(valid, model, 0.3)
+                evaluation_metrics = evaluate(valid, model, valid_metrics_ratio[0])
                 print(evaluation_metrics, flush = True)
                 key_metric = evaluation_metrics[KEY_METRIC]
                 if key_metric > best_performance:
@@ -369,7 +374,7 @@ if __name__ == '__main__':
         valid_loss = valid_loss/int(len(valid_dataloader) * 0.1)
 
         print('end of epoch {}, full validation set loss: {}'.format(epoch, valid_loss), flush = True)
-        print(evaluate(valid, model, 1), flush = True)
+        print(evaluate(valid, model, valid_metrics_ratio[1]), flush = True)
 
     if early_stop_now:
         print('The training is terminated by early stopping.', flush = True)
