@@ -122,29 +122,36 @@ class MINDDataset(torch.utils.data.Dataset):
       self.init_news()
     indices, reprs = [], []
     i = 0
-    batch_indices, batch_titles = [], []
+    batch_indices, batch_titles, batch_classes = [], [], []
     for nid, title in self._titles.items():
       batch_indices.append(nid)
       batch_titles.append(title)
+      vert, subvert = self._classes[nid]
+      batch_classes.append(self._class2id[vert])
+      batch_subclasses.append(self._subclass2id[subvert])
       i += 1
       if i % batch_size == 0:
         #print('batch', i//batch_size, flush=True)
-        encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest").to(device) #tokenize
-        if self.model == 'bert-base-uncased' or self.model.startswith('prajjwal1/bert'):
-          batch_reprs = news_encoder(**encoder_input).pooler_output.data.to('cpu') #forward
-        elif self.model == 'distilbert-base-uncased':
-          batch_reprs = news_encoder(**encoder_input).last_hidden_state[:,0,:].data.to('cpu') #forward
+        encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest") #tokenize
+        encoder_input['classes'] = torch.LongTensor(batch_classes)
+        encoder_input['subclasses'] = torch.LongTensor(batch_subclasses)
+        batch_reprs = news_encoder(encoder_input.to(device))
+        # if self.model == 'bert-base-uncased' or self.model.startswith('prajjwal1/bert'):
+        #   batch_reprs = news_encoder(**encoder_input).pooler_output.data.to('cpu') #forward
+        # elif self.model == 'distilbert-base-uncased':
+        #   batch_reprs = news_encoder(**encoder_input).last_hidden_state[:,0,:].data.to('cpu') #forward
+
         indices.extend(batch_indices)
         reprs.extend(batch_reprs)
         #print(len(reprs), len(reprs[0]))
-        batch_indices, batch_titles = [], [] # clear
+        batch_indices, batch_titles, batch_classes = [], [], [] # clear
 
     # forward and extend the rest titles
-    encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest").to(device) #tokenize
-    if self.model == 'bert-base-uncased' or self.model.startswith('prajjwal1/bert'):
-      batch_reprs = news_encoder(**encoder_input).pooler_output.data.to('cpu') #forward
-    elif self.model == 'distilbert-base-uncased':
-      batch_reprs = news_encoder(**encoder_input).last_hidden_state[:,0,:].data.to('cpu') #forward
+    encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest") #tokenize
+    encoder_input['classes'] = torch.LongTensor(batch_classes)
+    encoder_input['subclasses'] = torch.LongTensor(batch_subclasses)
+    batch_reprs = news_encoder(encoder_input.to(device))
+    
     indices.extend(batch_indices)
     reprs.extend(batch_reprs)
     self._title_reprs = dict(zip(indices, reprs))
