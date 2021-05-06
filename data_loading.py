@@ -242,8 +242,8 @@ class MINDDataset(torch.utils.data.Dataset):
     output['candidate_mask'] = torch.Tensor([instance['candidate_mask'] for instance in batch])
     output['history_mask'] = torch.Tensor([instance['history_mask'] for instance in batch])
     # print(classes)
-    output['classes'] = [ self._class2id[vert] for vert, _ in classes]
-    output['subclasses'] = [ self._subclass2id[subvert] for _, subvert in classes]
+    output['classes'] = torch.LongTensor([ self._class2id[vert] for vert, _ in classes])
+    output['subclasses'] = torch.LongTensor([ self._subclass2id[subvert] for _, subvert in classes])
     return output
 
 

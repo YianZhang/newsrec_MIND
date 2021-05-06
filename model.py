@@ -121,6 +121,7 @@ class Dot_product_scorer(torch.nn.Module):
 
 class News_encoder(torch.nn.Module):
     def __init__(self, ht_model, news_encoder_parameters):
+        super().__init__()
         self.ht_model = ht_model
         self.title_encoder = AutoModel.from_pretrained(self.ht_model)
         self.class_embedding = torch.nn.Embedding(news_encoder_parameters['n_classes'], news_encoder_parameters['class_embedding_dim'])
@@ -138,7 +139,7 @@ class News_encoder(torch.nn.Module):
             title_reprs = self.title_encoder(**x).pooler_output
         elif self.ht_model == 'distilbert-base-uncased':
             title_reprs = self.title_encoder(**x).last_hidden_state[:,0,:].flatten()
-        catted = torch.cat((title_reprs, class_embeddings, subclass_embeddings))
+        catted = torch.cat((title_reprs, class_embeddings, subclass_embeddings), dim=-1)
         return self.distil(catted)
 
 class NewsRec(torch.nn.Module):
@@ -148,11 +149,11 @@ class NewsRec(torch.nn.Module):
         self.ht_model = ht_model
         self.news_encoder = News_encoder(ht_model, self.news_encoder_parameters)
         self.news_MHA = MySelfAttention(self_attention_config)
-        self.news_pooling = Attention_pooling(self.news_encoder_parameters['news_repr_dimension'])
+        self.news_pooling = Attention_pooling(self.news_encoder_parameters['news_repr_dim'])
         if scorer == 'dot_product':
             self.scorer = Dot_product_scorer()
         elif scorer == 'pseudo_MLP':
-            self.scorer = Pseudo_MLP_Scorer(self.news_encoder_parameters['news_repr_dimension']*2, self.news_encoder_parameters['news_repr_dimension'], self.news_encoder_parameters['news_repr_dimension']//2)
+            self.scorer = Pseudo_MLP_Scorer(self.news_encoder_parameters['news_repr_dim']*2, self.news_encoder_parameters['news_repr_dim'], self.news_encoder_parameters['news_repr_dim']//2)
 
     def masking(self, x, candidate_mask):
         mask = ((1 - candidate_mask) * -10000.0).to(dtype=next(self.parameters()).dtype)
@@ -226,19 +227,19 @@ if __name__ == '__main__':
     # position embedding related HPs are useless.
     if args.pretrained_model == 'bert-base-uncased':
         BATCH_SIZE = 3 # 6 works for demo, not for large
-        HIDDEN_SIZE = 768
+        # HIDDEN_SIZE = 768
     elif args.pretrained_model == 'distilbert-base-uncased':
         BATCH_SIZE = 8 # 12 does not work for small
-        HIDDEN_SIZE = 768
+        # HIDDEN_SIZE = 768
     elif args.pretrained_model == 'prajjwal1/bert-tiny':
         BATCH_SIZE = 24
-        HIDDEN_SIZE = 128
+        # HIDDEN_SIZE = 128
     elif args.pretrained_model == 'prajjwal1/bert-mini':
         BATCH_SIZE = 16
-        HIDDEN_SIZE = 256
+        # HIDDEN_SIZE = 256
         
-    self_attention_hyperparameters = {'num_attention_heads' : 16, 'hidden_size' : HIDDEN_SIZE, 'attention_probs_dropout_prob': args.attn_dropout, 'max_position_embeddings': 4, 'is_decoder': False, 'position_embedding_type' : None,}
-    assert self_attention_hyperparameters['hidden_size'] % self_attention_hyperparameters['num_attention_heads'] == 0
+    self_attention_hyperparameters = {'num_attention_heads' : 20, 'attention_probs_dropout_prob': args.attn_dropout, 'max_position_embeddings': 4, 'is_decoder': False, 'position_embedding_type' : None,}
+    # assert self_attention_hyperparameters['hidden_size'] % self_attention_hyperparameters['num_attention_heads'] == 0
     # get data
     from data_loading import MINDDataset
     from torch.utils.data import RandomSampler
@@ -270,9 +271,10 @@ if __name__ == '__main__':
     print('finish loading data', flush = True)
 
     # build the model
+    news_encoder_parameters = {'n_classes': len(train._class2id), 'n_subclasses': len(train._subclass2id), 'class_embedding_dim': 50, 'subclass_embedding_dim': 30, 'news_repr_dim': 100}
+    self_attention_hyperparameters['hidden_size'] = news_encoder_parameters['news_repr_dim']
     self_attention_config = Config(self_attention_hyperparameters)
-    news_encoder_parameters = {'n_classes': len(train._class2id), 'n_subclasses': len(train._subclass2id), 'class_embedding_dim': 50, 'subclass_embedding_dim': 30, 'news_repr_dim': 90}
-    model = NewsRec(self_attention_config, args.pretrained_model, args.scorer).to(device)
+    model = NewsRec(self_attention_config, news_encoder_parameters, args.pretrained_model, args.scorer).to(device)
 
     print('finish building the model', flush = True)
 
