@@ -8,6 +8,9 @@ class MINDDataset(torch.utils.data.Dataset):
   batch_size=1, title_size=50, model='bert-base-uncased', subset='train'):
     """ initialize the dataset. """
     self._titles = {}
+    self._classes = {}
+    self._class2id = {}
+    self._subclass2id = {}
     self._behaviors = []
     self._dataset = []
     self._title_reprs = {}
@@ -31,8 +34,16 @@ class MINDDataset(torch.utils.data.Dataset):
     elif model.startswith('distilbert'):
       self.tokenizer = DistilBertTokenizer.from_pretrained(self.model)
   
-  def init_titles(self):
-    """ get news titles from news_file."""
+  def init_news(self):
+    """ get news titles and classes from news_file."""
+    if self._titles != {}:
+      print('Warning: Overwriting the loaded titles')
+      self._titles = {}
+    if self._classes != {}:
+      print('Warning: Overwriting the loaded classes')
+      self._classes = {}
+
+    self._class2id[''], self._subclass2id[''] = 0, 0
     with open(self.news_file, 'r') as f:
       line = f.readline()
       while line != '':
@@ -40,6 +51,11 @@ class MINDDataset(torch.utils.data.Dataset):
         if nid in self._titles:
           continue
         self._titles[nid] = title
+        self._classes[nid] = (vert, subvert)
+        if vert not in self._class2id:
+          self._class2id[vert] = len(self._class2id)
+        if subvert not in self._subclass2id:
+          self._subclass2id[subvert] = len(self._subclass2id)
         line = f.readline()
         
   def newsample(self, news, ratio):
@@ -60,18 +76,19 @@ class MINDDataset(torch.utils.data.Dataset):
    
 
   def load_data(self):
-    self.init_titles()
+    self.init_news()
     print('init titles finished')
     with open(self.behavior_file, 'r') as f:
       line = f.readline()
       while line != '':
         # get the histories
         # impr_id = line.strip("\n").split(self.col_spliter)[0] # for debugging
-        uid, time, history, impr = line.strip("\n").split(self.col_spliter)[-4:]
-        history = history.split()
-        history = [0] * (self.his_size - len(history)) + history[:self.his_size]
+        uid, time, his_ids, impr = line.strip("\n").split(self.col_spliter)[-4:]
+        his_ids = his_ids.split()
+        his_ids = [0] * (self.his_size - len(his_ids)) + his_ids[:self.his_size]
         # hid = history # for debugging
-        history = ['' if hid == 0 else self._titles[hid] for hid in history] # to be further discussed
+        history = ['' if hid == 0 else self._titles[hid] for hid in his_ids]
+        history_classes = [('','') if hid == 0 else self._classes[hid] for hid in his_ids]
         history_mask = [1 if his!='' else 0 for his in history]
         pos, neg = [], [] 
         # get the positive and negative ids in this impression
@@ -86,10 +103,11 @@ class MINDDataset(torch.utils.data.Dataset):
           # make an instance for each positive sample in the impression
           for pid in pos:
             neg_samples = self.newsample(neg, self.npratio)
-            candidates = [self._titles[pid]] + [self._titles[nid] if nid!=0 else '' for nid in neg_samples] # to be further discussed
+            candidates = [self._titles[pid]] + [self._titles[nid] if nid!=0 else '' for nid in neg_samples]
+            candidate_classes = [self._classes[pid]] + [self._classes[nid] if nid!=0 else ('','') for nid in neg_samples]
             candidate_mask = [1 if candidate!='' else 0 for candidate in candidates]
             #Note: uid not parsed since not used in our vanilla model.
-            instance = {'history': history, 'candidates': candidates, 'history_mask': history_mask, 'candidate_mask': candidate_mask}
+            instance = {'history': history, 'candidates': candidates, 'history_classes': history_classes, 'candidate_classes': candidate_classes, 'history_mask': history_mask, 'candidate_mask': candidate_mask}
             # instance = {'history': history, 'candidates': candidates, 'history_mask': history_mask, 'candidate_mask': candidate_mask, 'impr_id': impr_id, 'pid': pid, 'nid': neg_samples, 'hid':hid} # for debugging
             self._dataset.append(instance)
         else:
@@ -97,11 +115,11 @@ class MINDDataset(torch.utils.data.Dataset):
 
         line = f.readline()
     
-  def encode_all_titles(self, title_encoder, batch_size = 128):
+  def encode_all_titles(self, news_encoder, batch_size = 128):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    title_encoder = title_encoder.to(device)
-    if not hasattr(self, '_titles'):
-      self.init_titles()
+    news_encoder = news_encoder.to(device)
+    if self._titles == {} or self._classes == {}:
+      self.init_news()
     indices, reprs = [], []
     i = 0
     batch_indices, batch_titles = [], []
@@ -113,9 +131,9 @@ class MINDDataset(torch.utils.data.Dataset):
         #print('batch', i//batch_size, flush=True)
         encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest").to(device) #tokenize
         if self.model == 'bert-base-uncased' or self.model.startswith('prajjwal1/bert'):
-          batch_reprs = title_encoder(**encoder_input).pooler_output.data.to('cpu') #forward
+          batch_reprs = news_encoder(**encoder_input).pooler_output.data.to('cpu') #forward
         elif self.model == 'distilbert-base-uncased':
-          batch_reprs = title_encoder(**encoder_input).last_hidden_state[:,0,:].data.to('cpu') #forward
+          batch_reprs = news_encoder(**encoder_input).last_hidden_state[:,0,:].data.to('cpu') #forward
         indices.extend(batch_indices)
         reprs.extend(batch_reprs)
         #print(len(reprs), len(reprs[0]))
@@ -124,9 +142,9 @@ class MINDDataset(torch.utils.data.Dataset):
     # forward and extend the rest titles
     encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest").to(device) #tokenize
     if self.model == 'bert-base-uncased' or self.model.startswith('prajjwal1/bert'):
-      batch_reprs = title_encoder(**encoder_input).pooler_output.data.to('cpu') #forward
+      batch_reprs = news_encoder(**encoder_input).pooler_output.data.to('cpu') #forward
     elif self.model == 'distilbert-base-uncased':
-      batch_reprs = title_encoder(**encoder_input).last_hidden_state[:,0,:].data.to('cpu') #forward
+      batch_reprs = news_encoder(**encoder_input).last_hidden_state[:,0,:].data.to('cpu') #forward
     indices.extend(batch_indices)
     reprs.extend(batch_reprs)
     self._title_reprs = dict(zip(indices, reprs))
@@ -140,8 +158,8 @@ class MINDDataset(torch.utils.data.Dataset):
       print('Impressions already processed.', flush = True)
       return
 
-    if not hasattr(self, '_titles'):
-      self.init_titles()
+    if self._titles == {} or self._classes == {}:
+      self.init_news()
     
     if not hasattr(self, '_title_reprs'):
       Exception("Please encode the titles first!")
@@ -202,12 +220,14 @@ class MINDDataset(torch.utils.data.Dataset):
     #Bertify
     #TODO: test set
     sentences = []
+    classes = []
     # impr_ids = [] # for debugging
     # pids = [] # for debugging
     # nids = [] # for debugging
     # hids = [] # for debugging
     for instance in batch:
-      sentences+=instance['candidates']+instance['history']
+      sentences += instance['candidates']+instance['history']
+      classes += instance['candidate_classes']+instance['history_classes']
       # impr_ids.append(instance['impr_id']) # for debugging
       # pids.append(instance['pid']) # for debugging
       # nids.append(instance['nid']) # for debugging
@@ -221,10 +241,14 @@ class MINDDataset(torch.utils.data.Dataset):
     output['labels'] = torch.Tensor(([1] + [0] * self.npratio + [-1] * self.his_size) * len(batch))
     output['candidate_mask'] = torch.Tensor([instance['candidate_mask'] for instance in batch])
     output['history_mask'] = torch.Tensor([instance['history_mask'] for instance in batch])
+    # print(classes)
+    output['classes'] = [ self._class2id[vert] for vert, _ in classes]
+    output['subclasses'] = [ self._subclass2id[subvert] for _, subvert in classes]
     return output
 
 
 if __name__ == '__main__':
+  torch.manual_seed(42)
   from torch.utils.data import RandomSampler
   from torch.utils.data import DataLoader
 

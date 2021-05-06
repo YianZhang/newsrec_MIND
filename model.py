@@ -111,7 +111,7 @@ class Pseudo_MLP_Scorer(torch.nn.Module):
     def score(self, candidate_reprs, user_reprs):
         return self.forward(torch.cat((candidate_reprs, user_reprs.view(user_reprs.shape[0],1,user_reprs.shape[1]).expand((-1,candidate_reprs.shape[1],-1))), dim=2))
 
-class Dot_Product_Scorer(torch.nn.Module):
+class Dot_product_scorer(torch.nn.Module):
     def __init__(self):
         super().__init__()
     def forward(self, candidate_reprs, user_reprs):
@@ -119,17 +119,40 @@ class Dot_Product_Scorer(torch.nn.Module):
     def score(self, candidate_reprs, user_reprs):
         return self.forward(candidate_reprs, user_reprs)
 
-class NewsRec(torch.nn.Module):
-    def __init__(self, self_attention_config, ht_model='bert-base-uncased', scorer = 'dot_product'):
-        super().__init__()
+class News_encoder(torch.nn.Module):
+    def __init__(self, ht_model, news_encoder_parameters):
         self.ht_model = ht_model
-        self.news_encoder = AutoModel.from_pretrained(ht_model)
+        self.title_encoder = AutoModel.from_pretrained(self.ht_model)
+        self.class_embedding = torch.nn.Embedding(news_encoder_parameters['n_classes'], news_encoder_parameters['class_embedding_dim'])
+        self.subclass_embedding = torch.nn.Embedding(news_encoder_parameters['n_subclasses'], news_encoder_parameters['subclass_embedding_dim'])
+        self.distil = nn.Linear(news_encoder_parameters['class_embedding_dim'] + 
+                                news_encoder_parameters['subclass_embedding_dim'] + 
+                                self.title_encoder.config.hidden_size, 
+                                    news_encoder_parameters['news_repr_dim'])
+
+    def forward(self, x):
+        # classes
+        class_embeddings, subclass_embeddings = self.class_embedding(x['classes']), self.subclass_embedding(x['subclasses'])
+        del x['classes']; del x['subclasses']
+        if self.ht_model == 'bert-base-uncased' or self.ht_model.startswith('prajjwal1/bert'):
+            title_reprs = self.title_encoder(**x).pooler_output
+        elif self.ht_model == 'distilbert-base-uncased':
+            title_reprs = self.title_encoder(**x).last_hidden_state[:,0,:].flatten()
+        catted = torch.cat((title_reprs, class_embeddings, subclass_embeddings))
+        return self.distil(catted)
+
+class NewsRec(torch.nn.Module):
+    def __init__(self, self_attention_config, news_encoder_parameters, ht_model='bert-base-uncased', scorer = 'dot_product'):
+        super().__init__()
+        self.news_encoder_parameters = news_encoder_parameters
+        self.ht_model = ht_model
+        self.news_encoder = News_encoder(ht_model, self.news_encoder_parameters)
         self.news_MHA = MySelfAttention(self_attention_config)
-        self.news_pooling = Attention_pooling(self.news_encoder.config.hidden_size)
+        self.news_pooling = Attention_pooling(self.news_encoder_parameters['news_repr_dimension'])
         if scorer == 'dot_product':
-            self.scorer = Dot_Product_Scorer()
+            self.scorer = Dot_product_scorer()
         elif scorer == 'pseudo_MLP':
-            self.scorer = Pseudo_MLP_Scorer(self.news_encoder.config.hidden_size*2, self.news_encoder.config.hidden_size, self.news_encoder.config.hidden_size//2)
+            self.scorer = Pseudo_MLP_Scorer(self.news_encoder_parameters['news_repr_dimension']*2, self.news_encoder_parameters['news_repr_dimension'], self.news_encoder_parameters['news_repr_dimension']//2)
 
     def masking(self, x, candidate_mask):
         mask = ((1 - candidate_mask) * -10000.0).to(dtype=next(self.parameters()).dtype)
@@ -159,10 +182,7 @@ class NewsRec(torch.nn.Module):
         his_indices = torch.nonzero(labels == -1, as_tuple = True)[0]
         impr_indices = torch.nonzero(labels != -1, as_tuple = True)[0]
         
-        if self.ht_model == 'bert-base-uncased' or self.ht_model.startswith('prajjwal1/bert'):
-            news_reprs = self.news_encoder(**x).pooler_output
-        elif self.ht_model == 'distilbert-base-uncased':
-            news_reprs = self.news_encoder(**x).last_hidden_state[:,0,:]
+        news_reprs = self.news_encoder(x)
 
         his_reprs = news_reprs[his_indices].view(batch_size, -1, news_reprs.shape[-1])
         # impr_labels = labels[impr_indices].view(batch_size, -1)
@@ -251,6 +271,7 @@ if __name__ == '__main__':
 
     # build the model
     self_attention_config = Config(self_attention_hyperparameters)
+    news_encoder_parameters = {'n_classes': len(train._class2id), 'n_subclasses': len(train._subclass2id), 'class_embedding_dim': 50, 'subclass_embedding_dim': 30, 'news_repr_dim': 90}
     model = NewsRec(self_attention_config, args.pretrained_model, args.scorer).to(device)
 
     print('finish building the model', flush = True)
