@@ -122,7 +122,7 @@ class MINDDataset(torch.utils.data.Dataset):
       self.init_news()
     indices, reprs = [], []
     i = 0
-    batch_indices, batch_titles, batch_classes = [], [], []
+    batch_indices, batch_titles, batch_classes, batch_subclasses = [], [], [], []
     for nid, title in self._titles.items():
       batch_indices.append(nid)
       batch_titles.append(title)
@@ -135,7 +135,7 @@ class MINDDataset(torch.utils.data.Dataset):
         encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest") #tokenize
         encoder_input['classes'] = torch.LongTensor(batch_classes)
         encoder_input['subclasses'] = torch.LongTensor(batch_subclasses)
-        batch_reprs = news_encoder(encoder_input.to(device))
+        batch_reprs = news_encoder(encoder_input.to(device)).data.to('cpu')
         # if self.model == 'bert-base-uncased' or self.model.startswith('prajjwal1/bert'):
         #   batch_reprs = news_encoder(**encoder_input).pooler_output.data.to('cpu') #forward
         # elif self.model == 'distilbert-base-uncased':
@@ -144,13 +144,13 @@ class MINDDataset(torch.utils.data.Dataset):
         indices.extend(batch_indices)
         reprs.extend(batch_reprs)
         #print(len(reprs), len(reprs[0]))
-        batch_indices, batch_titles, batch_classes = [], [], [] # clear
+        batch_indices, batch_titles, batch_classes, batch_subclasses = [], [], [], [] # clear
 
     # forward and extend the rest titles
     encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest") #tokenize
     encoder_input['classes'] = torch.LongTensor(batch_classes)
     encoder_input['subclasses'] = torch.LongTensor(batch_subclasses)
-    batch_reprs = news_encoder(encoder_input.to(device))
+    batch_reprs = news_encoder(encoder_input.to(device)).data.to('cpu')
     
     indices.extend(batch_indices)
     reprs.extend(batch_reprs)
@@ -209,7 +209,7 @@ class MINDDataset(torch.utils.data.Dataset):
       labels, preds = [], []  
       for instance in self._processed_impressions[:int(ratio*len(self._processed_impressions))]:
         instance['candidate_reprs'] = torch.stack([self._title_reprs[nid] for nid in instance['candidates']]).to(device)
-        instance['history_reprs'] = torch.stack([torch.zeros(model.news_encoder.config.hidden_size) if hid == 0 else self._title_reprs[hid] for hid in instance['history_ids']]).to(device)
+        instance['history_reprs'] = torch.stack([torch.zeros(model.news_encoder_parameters['news_repr_dim']) if hid == 0 else self._title_reprs[hid] for hid in instance['history_ids']]).to(device)
         instance['history_mask'] = torch.tensor(instance['history_mask']).to(device)
         labels.append(np.array(instance['labels']))
         preds.append(model.predict(instance).numpy())
