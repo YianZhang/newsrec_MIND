@@ -273,7 +273,7 @@ if __name__ == '__main__':
     print('finish loading data', flush = True)
 
     # build the model
-    news_encoder_parameters = {'n_classes': len(train._class2id), 'n_subclasses': len(train._subclass2id), 'class_embedding_dim': 50, 'subclass_embedding_dim': 30, 'news_repr_dim': 100, 'distil_dropout': 0, 'class_dropout': 0.35}
+    news_encoder_parameters = {'n_classes': len(train._class2id), 'n_subclasses': len(train._subclass2id), 'class_embedding_dim': 50, 'subclass_embedding_dim': 30, 'news_repr_dim': 100, 'distil_dropout': 0.1, 'class_dropout': 0}
     self_attention_hyperparameters['hidden_size'] = news_encoder_parameters['news_repr_dim']
     self_attention_config = Config(self_attention_hyperparameters)
     model = NewsRec(self_attention_config, news_encoder_parameters, args.pretrained_model, args.scorer).to(device)
@@ -295,13 +295,13 @@ if __name__ == '__main__':
     valid_metrics_ratio = (0.3, 1)
     if args.datasize == 'demo':
         valid_loss_ratio = 0.02 # demo # out of 716 * 16 # for demo I used 0.02
-        MAX_EPOCHS = 5
+        MAX_EPOCHS = 7
     elif args.datasize == 'small':
         valid_loss_ratio = 0.003 # small # out of 6962 * 16
         MAX_EPOCHS = 3
     elif args.datasize == 'large':
         valid_loss_ratio = 0.0005 
-        MAX_EPOCHS = 2
+        MAX_EPOCHS = 1
         valid_metrics_ratio = (0.06, 0.2)
     
 
