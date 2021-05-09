@@ -138,8 +138,8 @@ class News_encoder(torch.nn.Module):
         # classes
         class_embeddings, subclass_embeddings = self.class_dropout(self.class_embedding(x['classes'])), self.class_dropout(self.subclass_embedding(x['subclasses']))
         del x['classes']; del x['subclasses']
-        title_entity_embeddings, history_entity_embeddings = x['title_entity_embeddings'], x['history_entity_embeddings']
-        del x['title_entity_embeddings']; del x['history_entity_embeddings']
+        title_entity_embeddings, history_entity_embeddings = x['title_entity_embeddings'], x['abstract_entity_embeddings']
+        del x['title_entity_embeddings']; del x['abstract_entity_embeddings']
         if self.ht_model == 'bert-base-uncased' or self.ht_model.startswith('prajjwal1/bert'):
             title_reprs = self.title_encoder(**x).pooler_output
         elif self.ht_model == 'distilbert-base-uncased':
