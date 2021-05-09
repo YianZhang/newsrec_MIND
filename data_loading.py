@@ -2,15 +2,15 @@ import torch
 import numpy as np
 import random
 from transformers import BertTokenizer, DistilBertTokenizer
+from utils import get_class_dictionaries
 
 class MINDDataset(torch.utils.data.Dataset):
-  def __init__(self, news_file, behavior_file, entity_file, npratio=4, his_size=50, col_spliter="\t", ID_spliter="%", 
+  def __init__(self, news_file, behavior_file, entity_file, large_address, npratio=4, his_size=50, col_spliter="\t", ID_spliter="%", 
   batch_size=1, title_size=50, model='bert-base-uncased', subset='train'):
     """ initialize the dataset. """
     self._titles = {}
     self._classes = {}
-    self._class2id = {}
-    self._subclass2id = {}
+    self._class2id, self._subclass2id = get_class_dictionaries(large_address)
     self._entity_embeddings = {}
     self._news_entity_embeddings = {}
     self._behaviors = []
@@ -49,13 +49,9 @@ class MINDDataset(torch.utils.data.Dataset):
     if self._titles != {}:
       print('Warning: Overwriting the loaded titles')
       self._titles = {}
-    if self._classes != {}:
-      print('Warning: Overwriting the loaded classes')
-      self._classes = {}
     if self._entity_embeddings == {}:
       self.init_entities()
 
-    self._class2id[''], self._subclass2id[''] = 0, 0
     with open(self.news_file, 'r') as f:
       line = f.readline()
       while line != '':
@@ -64,10 +60,6 @@ class MINDDataset(torch.utils.data.Dataset):
           continue
         self._titles[nid] = title
         self._classes[nid] = (vert, subvert)
-        if vert not in self._class2id:
-          self._class2id[vert] = len(self._class2id)
-        if subvert not in self._subclass2id:
-          self._subclass2id[subvert] = len(self._subclass2id)
         
         t_all = torch.tensor([self._entity_embeddings[entity['WikidataId']] for entity in eval(t_entities) if entity['WikidataId'] in self._entity_embeddings ])
         if len(t_all) == 0:
@@ -148,7 +140,7 @@ class MINDDataset(torch.utils.data.Dataset):
   def encode_all_titles(self, news_encoder, batch_size = 128):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     news_encoder = news_encoder.to(device)
-    if self._titles == {} or self._classes == {}:
+    if self._titles == {}:
       self.init_news()
     indices, reprs = [], []
     i = 0

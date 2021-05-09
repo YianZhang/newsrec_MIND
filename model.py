@@ -253,7 +253,7 @@ if __name__ == '__main__':
     from os import path
 
     DATA_SIZE = args.datasize # demo, small, large
-    train = MINDDataset(path.join(DATA_SIZE,'train/news.tsv'), path.join(DATA_SIZE,'train/behaviors.tsv'), 'all_embeddings.vec', batch_size=BATCH_SIZE, model=args.pretrained_model)
+    train = MINDDataset(path.join(DATA_SIZE,'train/news.tsv'), path.join(DATA_SIZE,'train/behaviors.tsv'), 'all_embeddings.vec', 'large', batch_size=BATCH_SIZE, model=args.pretrained_model)
     train.load_data()
     train_sampler = RandomSampler(train)
     train_dataloader = DataLoader(
@@ -263,7 +263,7 @@ if __name__ == '__main__':
     collate_fn=train.collate_fn
     )
 
-    valid = MINDDataset(path.join(DATA_SIZE,'valid/news.tsv'), path.join(DATA_SIZE,'valid/behaviors.tsv'), 'all_embeddings.vec', batch_size=BATCH_SIZE, model=args.pretrained_model, subset='valid')
+    valid = MINDDataset(path.join(DATA_SIZE,'valid/news.tsv'), path.join(DATA_SIZE,'valid/behaviors.tsv'), 'all_embeddings.vec', 'large', batch_size=BATCH_SIZE, model=args.pretrained_model, subset='valid')
     valid.load_data()
     valid_sampler = RandomSampler(valid)
     valid_dataloader = DataLoader(
@@ -273,6 +273,7 @@ if __name__ == '__main__':
     collate_fn=valid.collate_fn
     )
 
+    print('checking the class2id matrices:', train._class2id == valid._class2id, train._subclass2id == valid.subclass2id)
     print('finish loading data', flush = True)
 
     # build the model

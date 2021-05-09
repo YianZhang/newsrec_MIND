@@ -7,6 +7,7 @@ from sklearn.metrics import (
     accuracy_score,
     f1_score,
 )
+from os import path
 
 class Config:
   def __init__(self, entries):
@@ -171,3 +172,20 @@ def cal_metric(labels, preds, metrics):
             raise ValueError("not define this metric {0}".format(metric))
     return res
 
+def get_class_dictionaries(large_address, col_spliter = '\t'):
+    subsets = ['train', 'valid', 'test']
+    class2id, subclass2id = {'': 0}, {'': 0}
+
+    for subset in subsets:
+        data_path = path.join(large_address, subset, 'news.tsv')
+        with open(data_path, 'r') as f:
+            line = f.readline()
+            while line != '':
+                _, vert, subvert, _, _, _, _, _ = line.strip("\n").split(self.col_spliter)
+                if vert not in self._class2id:
+                    class2id[vert] = len(class2id)
+                if subvert not in self._subclass2id:
+                    subclass2id[subvert] = len(subclass2id)
+                line = f.readline()
+    
+    return class2id, subclass2id
