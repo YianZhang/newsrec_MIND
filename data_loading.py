@@ -41,10 +41,7 @@ class MINDDataset(torch.utils.data.Dataset):
     for line in open(self.entity_file, 'r').readlines():
       line_entries = line.strip().split('\t')
       entity_id = line_entries[0]
-      try:
-        entity_embedding = [float(line_entries[i]) for i in range(1, len(line_entries))]
-      except:
-        print(line_entries)
+      entity_embedding = [float(line_entries[i]) for i in range(1, len(line_entries))]
       self._entity_embeddings[entity_id] = entity_embedding
   
   def init_news(self):
@@ -106,6 +103,7 @@ class MINDDataset(torch.utils.data.Dataset):
    
 
   def load_data(self):
+    self.init_entities()
     self.init_news()
     print('init titles finished')
     with open(self.behavior_file, 'r') as f:
@@ -119,7 +117,7 @@ class MINDDataset(torch.utils.data.Dataset):
         # hid = history # for debugging
         history = ['' if hid == 0 else self._titles[hid] for hid in his_ids]
         history_classes = [('','') if hid == 0 else self._classes[hid] for hid in his_ids]
-        history_entity_embeddings = [(torch.zeros(100), torch.zeros(100)) if hid ==0 else self._news_entity_embeddings[hid] for hid in his_ids]
+        history_entity_embeddings = [(torch.tensor(self._entity_embeddings['average']), torch.tensor(self._entity_embeddings['average'])) if hid == 0 else self._news_entity_embeddings[hid] for hid in his_ids]
         history_mask = [1 if his!='' else 0 for his in history]
         pos, neg = [], [] 
         # get the positive and negative ids in this impression
@@ -136,7 +134,7 @@ class MINDDataset(torch.utils.data.Dataset):
             neg_samples = self.newsample(neg, self.npratio)
             candidates = [self._titles[pid]] + [self._titles[nid] if nid!=0 else '' for nid in neg_samples]
             candidate_classes = [self._classes[pid]] + [self._classes[nid] if nid!=0 else ('','') for nid in neg_samples]
-            candidate_entity_embeddings = [self._news_entity_embeddings[pid]] + [self._news_entity_embeddings[nid] if nid!=0 else (torch.zeros(100), torch.zeros(100)) for nid in neg_samples]
+            candidate_entity_embeddings = [self._news_entity_embeddings[pid]] + [self._news_entity_embeddings[nid] if nid!=0 else (torch.tensor(self._entity_embeddings['average']), torch.tensor(self._entity_embeddings['average'])) for nid in neg_samples]
             candidate_mask = [1 if candidate!='' else 0 for candidate in candidates]
             #Note: uid not parsed since not used in our vanilla model.
             instance = {'history': history, 'candidates': candidates, 'history_classes': history_classes, 'candidate_classes': candidate_classes, 'history_mask': history_mask, 'candidate_mask': candidate_mask, 'candidate_entity_embeddings': candidate_entity_embeddings, 'history_entity_embeddings': history_entity_embeddings}
