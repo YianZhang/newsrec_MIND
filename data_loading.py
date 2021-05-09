@@ -72,15 +72,18 @@ class MINDDataset(torch.utils.data.Dataset):
         if subvert not in self._subclass2id:
           self._subclass2id[subvert] = len(self._subclass2id)
         
-        if t_entities.strip() == '[]':
-          t_entity_embedding = torch.zeros(100)
+        t_all = torch.tensor([self._entity_embeddings[entity['WikidataId']] for entity in eval(t_entities) if entity['WikidataId'] in self._entity_embeddings ])
+        if len(t_all) == 0:
+          t_emtity_embedding = torch.tensor(self._entity_embeddings['average'])
         else:
-          t_entity_embedding = torch.mean(torch.tensor([self._entity_embeddings[entity['WikidataId']] if entity['WikidataId'] in self._entity_embeddings else [0.0] * 100 for entity in eval(t_entities)]), dim = 0)
+          t_entity_embedding = torch.mean(t_all, dim = 0)
         
-        if a_entities.strip() == '[]':
-          a_entity_embedding = torch.zeros(100)
+        a_all = torch.tensor([self._entity_embeddings[entity['WikidataId']] for entity in eval(a_entities) if entity['WikidataId'] in self._entity_embeddings ])
+        if len(a_all) == 0:
+          a_entity_embedding = torch.tensor(self._entity_embeddings['average'])
         else:
-          a_entity_embedding = torch.mean(torch.tensor([self._entity_embeddings[entity['WikidataId']] if entity['WikidataId'] in self._entity_embeddings else [0.0] * 100 for entity in eval(a_entities)]), dim = 0)
+          a_entity_embedding = torch.mean(a_all, dim = 0)
+
         self._news_entity_embeddings[nid] = (t_entity_embedding, a_entity_embedding)
 
         line = f.readline()
@@ -170,7 +173,6 @@ class MINDDataset(torch.utils.data.Dataset):
         encoder_input['subclasses'] = torch.LongTensor(batch_subclasses)
         encoder_input['title_entity_embeddings'] = torch.stack(batch_title_entity_embeddings)
         encoder_input['abstract_entity_embeddings'] = torch.stack(batch_abstract_entity_embeddings)
-        print(encoder_input['title_entity_embeddings'].shape, encoder_input['abstract_entity_embeddings'].shape)
         batch_reprs = news_encoder(encoder_input.to(device)).data.to('cpu')
         # if self.model == 'bert-base-uncased' or self.model.startswith('prajjwal1/bert'):
         #   batch_reprs = news_encoder(**encoder_input).pooler_output.data.to('cpu') #forward
@@ -301,7 +303,7 @@ if __name__ == '__main__':
   from torch.utils.data import RandomSampler
   from torch.utils.data import DataLoader
 
-  my_ds = MINDDataset('demo/train/news.tsv', 'demo/train/behaviors.tsv', 'demo/train/entity_embedding.vec', npratio=2, his_size=2, batch_size=2)
+  my_ds = MINDDataset('demo/train/news.tsv', 'demo/train/behaviors.tsv', 'all_embeddings.vec', npratio=2, his_size=2, batch_size=2)
   my_ds.load_data()
 
   train_sampler = RandomSampler(my_ds)
