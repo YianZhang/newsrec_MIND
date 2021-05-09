@@ -85,7 +85,7 @@ class MINDDataset(torch.utils.data.Dataset):
         # impr_id = line.strip("\n").split(self.col_spliter)[0] # for debugging
         uid, time, his_ids, impr = line.strip("\n").split(self.col_spliter)[-4:]
         his_ids = his_ids.split()
-        his_ids = [0] * (self.his_size - len(his_ids)) + his_ids[:self.his_size]
+        his_ids = [0] * (self.his_size - len(his_ids)) + his_ids[-self.his_size:]
         # hid = history # for debugging
         history = ['' if hid == 0 else self._titles[hid] for hid in his_ids]
         history_classes = [('','') if hid == 0 else self._classes[hid] for hid in his_ids]
@@ -179,7 +179,7 @@ class MINDDataset(torch.utils.data.Dataset):
         # get the histories
         uid, time, history, impr = line.strip("\n").split(self.col_spliter)[-4:]
         history = history.split()
-        history = [0] * (self.his_size - len(history)) + history[:self.his_size]
+        history = [0] * (self.his_size - len(history)) + history[-self.his_size:]
         #history_reprs = [torch.zeros(768) if hid == 0 else self._title_reprs[hid] for hid in history]
         history_mask = [1 if hid!=0 else 0 for hid in history]
 
