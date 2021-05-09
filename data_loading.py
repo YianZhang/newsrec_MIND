@@ -151,7 +151,7 @@ class MINDDataset(torch.utils.data.Dataset):
       self.init_news()
     indices, reprs = [], []
     i = 0
-    batch_indices, batch_titles, batch_classes, batch_subclasses, batch_title_entity_embeddings, batch_abstract_entity_embeddings = [], [], [], []
+    batch_indices, batch_titles, batch_classes, batch_subclasses, batch_title_entity_embeddings, batch_abstract_entity_embeddings = [], [], [], [], [], []
     for nid, title in self._titles.items():
       batch_indices.append(nid)
       batch_titles.append(title)
@@ -168,8 +168,9 @@ class MINDDataset(torch.utils.data.Dataset):
         encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest") #tokenize
         encoder_input['classes'] = torch.LongTensor(batch_classes)
         encoder_input['subclasses'] = torch.LongTensor(batch_subclasses)
-        encoder_input['title_entity_embeddings'] = torch.stack(title_entity_embeddings)
-        encoder_input['abstract_entity_embeddings'] = torch.stack(abstract_entity_embeddings)
+        encoder_input['title_entity_embeddings'] = torch.stack(batch_title_entity_embeddings)
+        encoder_input['abstract_entity_embeddings'] = torch.stack(batch_abstract_entity_embeddings)
+        print(encoder_input['title_entity_embeddings'].shape, encoder_input['abstract_entity_embeddings'].shape)
         batch_reprs = news_encoder(encoder_input.to(device)).data.to('cpu')
         # if self.model == 'bert-base-uncased' or self.model.startswith('prajjwal1/bert'):
         #   batch_reprs = news_encoder(**encoder_input).pooler_output.data.to('cpu') #forward
@@ -179,14 +180,14 @@ class MINDDataset(torch.utils.data.Dataset):
         indices.extend(batch_indices)
         reprs.extend(batch_reprs)
         #print(len(reprs), len(reprs[0]))
-        batch_indices, batch_titles, batch_classes, batch_subclasses, batch_title_entity_embeddings, batch_abstract_embeddings = [], [], [], [] # clear
+        batch_indices, batch_titles, batch_classes, batch_subclasses, batch_title_entity_embeddings, batch_abstract_entity_embeddings = [], [], [], [], [], [] # clear
 
     # forward and extend the rest titles
     encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest") #tokenize
     encoder_input['classes'] = torch.LongTensor(batch_classes)
     encoder_input['subclasses'] = torch.LongTensor(batch_subclasses)
-    encoder_input['title_entity_embeddings'] = torch.stack(title_entity_embeddings)
-    encoder_input['abstract_entity_embeddings'] = torch.stack(abstract_entity_embeddings)
+    encoder_input['title_entity_embeddings'] = torch.stack(batch_title_entity_embeddings)
+    encoder_input['abstract_entity_embeddings'] = torch.stack(batch_abstract_entity_embeddings)
     batch_reprs = news_encoder(encoder_input.to(device)).data.to('cpu')
     
     indices.extend(batch_indices)

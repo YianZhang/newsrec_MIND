@@ -130,7 +130,7 @@ class News_encoder(torch.nn.Module):
         self.distil_dropout = nn.Dropout(news_encoder_parameters['distil_dropout'])
         self.distil = nn.Linear(news_encoder_parameters['class_embedding_dim'] + 
                                 news_encoder_parameters['subclass_embedding_dim'] + 
-                                news_encoder_parameters['entity_embedding_dim'] + 
+                                news_encoder_parameters['entity_embedding_dim'] * 2 + 
                                 self.title_encoder.config.hidden_size, 
                                     news_encoder_parameters['news_repr_dim'])
 
@@ -138,13 +138,13 @@ class News_encoder(torch.nn.Module):
         # classes
         class_embeddings, subclass_embeddings = self.class_dropout(self.class_embedding(x['classes'])), self.class_dropout(self.subclass_embedding(x['subclasses']))
         del x['classes']; del x['subclasses']
-        title_entity_embeddings, history_entity_embeddings = x['title_entity_embeddings'], x['abstract_entity_embeddings']
+        title_entity_embeddings, abstract_entity_embeddings = x['title_entity_embeddings'], x['abstract_entity_embeddings']
         del x['title_entity_embeddings']; del x['abstract_entity_embeddings']
         if self.ht_model == 'bert-base-uncased' or self.ht_model.startswith('prajjwal1/bert'):
             title_reprs = self.title_encoder(**x).pooler_output
         elif self.ht_model == 'distilbert-base-uncased':
             title_reprs = self.title_encoder(**x).last_hidden_state[:,0,:].flatten()
-        catted = torch.cat((title_reprs, class_embeddings, subclass_embeddings, title_entity_embeddings, history_entity_embeddings), dim=-1)
+        catted = torch.cat((title_reprs, class_embeddings, subclass_embeddings, title_entity_embeddings, abstract_entity_embeddings), dim=-1)
         return self.distil(self.distil_dropout(catted))
 
 class NewsRec(torch.nn.Module):
