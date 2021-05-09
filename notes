@@ -2,3 +2,4 @@
 04/30 0.06 should correspond to ~75 steps
 04/01 I think 04/30 is wrong
 05/05 Anticipating: dot_large3, dot_large4, mini_large2, mini_large3, the last three of which set epoch = 1
+05/06 to anticipate: class_exp3, class_exp_class_dropout, class_large. To try: weight decay. To check: class code
