@@ -8,14 +8,13 @@ class MINDDataset(torch.utils.data.Dataset):
   def __init__(self, news_file, behavior_file, entity_file, large_address, npratio=4, his_size=50, col_spliter="\t", ID_spliter="%", 
   batch_size=1, title_size=50, model='bert-base-uncased', subset='train'):
     """ initialize the dataset. """
-    self._titles = {}
+    self._titles, self._abstracts, self._bodies = {}, {}, {} # body data not available at this point
     self._classes = {}
     self._class2id, self._subclass2id = get_class_dictionaries(large_address)
     self._entity_embeddings = {}
     self._news_entity_embeddings = {}
-    self._behaviors = []
     self._dataset = []
-    self._title_reprs = {}
+    self._news_reprs = {}
     self._processed_impressions = []
 
     #Note: the longest title in demo-train is 48.
@@ -49,6 +48,9 @@ class MINDDataset(torch.utils.data.Dataset):
     if self._titles != {}:
       print('Warning: Overwriting the loaded titles')
       self._titles = {}
+    if self._abstracts != {}:
+      print('Warning: Overwriting the loaded abstracts')
+      self._abstracts = {}
     if self._entity_embeddings == {}:
       self.init_entities()
 
@@ -59,8 +61,10 @@ class MINDDataset(torch.utils.data.Dataset):
         if nid in self._titles:
           continue
         self._titles[nid] = title
+        self._abstracts[nid] = ab
         self._classes[nid] = (vert, subvert)
         
+        # entities
         t_all = torch.tensor([self._entity_embeddings[entity['WikidataId']] for entity in eval(t_entities) if entity['WikidataId'] in self._entity_embeddings ])
         if len(t_all) == 0:
           t_emtity_embedding = torch.tensor(self._entity_embeddings['average'])
@@ -97,7 +101,7 @@ class MINDDataset(torch.utils.data.Dataset):
   def load_data(self):
     self.init_entities()
     self.init_news()
-    print('init titles finished')
+    print('init news finished')
     with open(self.behavior_file, 'r') as f:
       line = f.readline()
       while line != '':
@@ -107,7 +111,8 @@ class MINDDataset(torch.utils.data.Dataset):
         his_ids = his_ids.split()
         his_ids = [0] * (self.his_size - len(his_ids)) + his_ids[-self.his_size:]
         # hid = history # for debugging
-        history = ['' if hid == 0 else self._titles[hid] for hid in his_ids]
+        history_titles = ['' if hid == 0 else self._titles[hid] for hid in his_ids]
+        history_abstracts = ['' if hid == 0 else self._abstracts[hid] for hid in his_ids]
         history_classes = [('','') if hid == 0 else self._classes[hid] for hid in his_ids]
         history_entity_embeddings = [(torch.tensor(self._entity_embeddings['average']), torch.tensor(self._entity_embeddings['average'])) if hid == 0 else self._news_entity_embeddings[hid] for hid in his_ids]
         history_mask = [1 if his!='' else 0 for his in history]
@@ -124,12 +129,13 @@ class MINDDataset(torch.utils.data.Dataset):
           # make an instance for each positive sample in the impression
           for pid in pos:
             neg_samples = self.newsample(neg, self.npratio)
-            candidates = [self._titles[pid]] + [self._titles[nid] if nid!=0 else '' for nid in neg_samples]
+            candidate_titles = [self._titles[pid]] + [self._titles[nid] if nid!=0 else '' for nid in neg_samples]
+            candidate_abstracts = [self._abstracts[pid]] + [self._abstracts[nid] if nid!=0 else '' for nid in neg_samples]
             candidate_classes = [self._classes[pid]] + [self._classes[nid] if nid!=0 else ('','') for nid in neg_samples]
             candidate_entity_embeddings = [self._news_entity_embeddings[pid]] + [self._news_entity_embeddings[nid] if nid!=0 else (torch.tensor(self._entity_embeddings['average']), torch.tensor(self._entity_embeddings['average'])) for nid in neg_samples]
-            candidate_mask = [1 if candidate!='' else 0 for candidate in candidates]
+            candidate_mask = [1 if candidate!='' else 0 for candidate in candidate_titles]
             #Note: uid not parsed since not used in our vanilla model.
-            instance = {'history': history, 'candidates': candidates, 'history_classes': history_classes, 'candidate_classes': candidate_classes, 'history_mask': history_mask, 'candidate_mask': candidate_mask, 'candidate_entity_embeddings': candidate_entity_embeddings, 'history_entity_embeddings': history_entity_embeddings}
+            instance = {'history': history, 'candidate_titles': candidate_titles, 'candidate_abstracts': candidate_abstracts, 'history_classes': history_classes, 'candidate_classes': candidate_classes, 'history_mask': history_mask, 'candidate_mask': candidate_mask, 'candidate_entity_embeddings': candidate_entity_embeddings, 'history_entity_embeddings': history_entity_embeddings}
             # instance = {'history': history, 'candidates': candidates, 'history_mask': history_mask, 'candidate_mask': candidate_mask, 'impr_id': impr_id, 'pid': pid, 'nid': neg_samples, 'hid':hid} # for debugging
             self._dataset.append(instance)
         else:
@@ -137,17 +143,18 @@ class MINDDataset(torch.utils.data.Dataset):
 
         line = f.readline()
     
-  def encode_all_titles(self, news_encoder, batch_size = 128):
+  def encode_all_news(self, news_encoder, batch_size = 128):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     news_encoder = news_encoder.to(device)
     if self._titles == {}:
       self.init_news()
     indices, reprs = [], []
     i = 0
-    batch_indices, batch_titles, batch_classes, batch_subclasses, batch_title_entity_embeddings, batch_abstract_entity_embeddings = [], [], [], [], [], []
+    batch_indices, batch_titles, batch_abstracts, batch_classes, batch_subclasses, batch_title_entity_embeddings, batch_abstract_entity_embeddings = [], [], [], [], [], [], []
     for nid, title in self._titles.items():
       batch_indices.append(nid)
       batch_titles.append(title)
+      batch_abstracts.append(self._abstracts[nid])
       vert, subvert = self._classes[nid]
       batch_classes.append(self._class2id[vert])
       batch_subclasses.append(self._subclass2id[subvert])
@@ -158,7 +165,9 @@ class MINDDataset(torch.utils.data.Dataset):
       i += 1
       if i % batch_size == 0:
         #print('batch', i//batch_size, flush=True)
-        encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest") #tokenize
+        encoder_input = {}
+        encoder_input['titles'] = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest") #tokenize
+        encoder_input['abstracts'] = self.tokenizer(batch_abstracts, return_tensors="pt", padding = "longest") #tokenize
         encoder_input['classes'] = torch.LongTensor(batch_classes)
         encoder_input['subclasses'] = torch.LongTensor(batch_subclasses)
         encoder_input['title_entity_embeddings'] = torch.stack(batch_title_entity_embeddings)
@@ -172,10 +181,12 @@ class MINDDataset(torch.utils.data.Dataset):
         indices.extend(batch_indices)
         reprs.extend(batch_reprs)
         #print(len(reprs), len(reprs[0]))
-        batch_indices, batch_titles, batch_classes, batch_subclasses, batch_title_entity_embeddings, batch_abstract_entity_embeddings = [], [], [], [], [], [] # clear
+        batch_indices, batch_titles, batch_abstracts, batch_classes, batch_subclasses, batch_title_entity_embeddings, batch_abstract_entity_embeddings = [], [], [], [], [], [], [] # clear
 
     # forward and extend the rest titles
-    encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest") #tokenize
+    encoder_input = {}
+    encoder_input['titles'] = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest") #tokenize
+    encoder_input['abstracts'] = self.tokenizer(batch_abstracts, return_tensors="pt", padding = "longest") #tokenize
     encoder_input['classes'] = torch.LongTensor(batch_classes)
     encoder_input['subclasses'] = torch.LongTensor(batch_subclasses)
     encoder_input['title_entity_embeddings'] = torch.stack(batch_title_entity_embeddings)
@@ -184,7 +195,7 @@ class MINDDataset(torch.utils.data.Dataset):
     
     indices.extend(batch_indices)
     reprs.extend(batch_reprs)
-    self._title_reprs = dict(zip(indices, reprs))
+    self._news_reprs = dict(zip(indices, reprs))
 
 
   def load_data_for_evaluation(self): # under construction
@@ -198,7 +209,7 @@ class MINDDataset(torch.utils.data.Dataset):
     if self._titles == {} or self._classes == {}:
       self.init_news()
     
-    if not hasattr(self, '_title_reprs'):
+    if not hasattr(self, '_news_reprs'):
       Exception("Please encode the titles first!")
     
     self._processed_impressions = []
@@ -210,7 +221,6 @@ class MINDDataset(torch.utils.data.Dataset):
         uid, time, history, impr = line.strip("\n").split(self.col_spliter)[-4:]
         history = history.split()
         history = [0] * (self.his_size - len(history)) + history[-self.his_size:]
-        #history_reprs = [torch.zeros(768) if hid == 0 else self._title_reprs[hid] for hid in history]
         history_mask = [1 if hid!=0 else 0 for hid in history]
 
         ids, labels = [], []
@@ -238,8 +248,8 @@ class MINDDataset(torch.utils.data.Dataset):
     if self.subset == 'valid':
       labels, preds = [], []  
       for instance in self._processed_impressions[:int(ratio*len(self._processed_impressions))]:
-        instance['candidate_reprs'] = torch.stack([self._title_reprs[nid] for nid in instance['candidates']]).to(device)
-        instance['history_reprs'] = torch.stack([torch.zeros(model.news_encoder_parameters['news_repr_dim']) if hid == 0 else self._title_reprs[hid] for hid in instance['history_ids']]).to(device)
+        instance['candidate_reprs'] = torch.stack([self._news_reprs[nid] for nid in instance['candidates']]).to(device)
+        instance['history_reprs'] = torch.stack([torch.zeros(model.news_encoder_parameters['news_repr_dim']) if hid == 0 else self._title_reprs[hid] for hid in instance['history_ids']]).to(device) #title_todo
         instance['history_mask'] = torch.tensor(instance['history_mask']).to(device)
         labels.append(np.array(instance['labels']))
         preds.append(model.predict(instance).numpy())
@@ -256,27 +266,32 @@ class MINDDataset(torch.utils.data.Dataset):
   def collate_fn(self, batch):
     #Bertify
     #TODO: test set
-    sentences = []
+    titles, abstracts = [], []
     classes = []
     news_entity_embeddings = []
+    output = {}
     # impr_ids = [] # for debugging
     # pids = [] # for debugging
     # nids = [] # for debugging
     # hids = [] # for debugging
     for instance in batch:
-      sentences += instance['candidates']+instance['history']
+      titles += instance['candidate_titles']+instance['history_titles']
+      abstracts += instance['candidate_abstracts']+instance['history_abstracts']
       classes += instance['candidate_classes']+instance['history_classes']
       news_entity_embeddings += instance['candidate_entity_embeddings'] + instance['history_entity_embeddings']
       # impr_ids.append(instance['impr_id']) # for debugging
       # pids.append(instance['pid']) # for debugging
       # nids.append(instance['nid']) # for debugging
       # hids.append(instance['hid']) # for debugging
-    output = self.tokenizer(sentences, return_tensors="pt", padding = "longest")
+    title_encodings = self.tokenizer(titles, return_tensors="pt", padding = "longest")
+    abstract_encodings = self.tokenizer(abstracts, return_tensors="pt", padding = "longest")
     # output['sentences'] = sentences # for debugging
     # output['impr_ids'] = impr_ids # for debugging
     # output['pids'] = pids # for debugging
     # output['nids'] = nids # for debugging
     # output['hids'] = hids # for debugging
+    output['titles'] = title_encodings
+    output['abstracts'] = abstract_encodings
     output['labels'] = torch.Tensor(([1] + [0] * self.npratio + [-1] * self.his_size) * len(batch))
     output['candidate_mask'] = torch.Tensor([instance['candidate_mask'] for instance in batch])
     output['history_mask'] = torch.Tensor([instance['history_mask'] for instance in batch])

@@ -124,6 +124,7 @@ class News_encoder(torch.nn.Module):
         super().__init__()
         self.ht_model = ht_model
         self.title_encoder = AutoModel.from_pretrained(self.ht_model)
+        self.abstract_encoder = AutoModel.from_pretrained(self.ht_model)
         self.class_embedding = torch.nn.Embedding(news_encoder_parameters['n_classes'], news_encoder_parameters['class_embedding_dim'])
         self.subclass_embedding = torch.nn.Embedding(news_encoder_parameters['n_subclasses'], news_encoder_parameters['subclass_embedding_dim'])
         self.class_dropout = nn.Dropout(news_encoder_parameters['class_dropout'])
@@ -131,20 +132,23 @@ class News_encoder(torch.nn.Module):
         self.distil = nn.Linear(news_encoder_parameters['class_embedding_dim'] + 
                                 news_encoder_parameters['subclass_embedding_dim'] + 
                                 news_encoder_parameters['entity_embedding_dim'] * 2 + 
-                                self.title_encoder.config.hidden_size, 
+                                self.title_encoder.config.hidden_size * 2, 
                                     news_encoder_parameters['news_repr_dim'])
 
     def forward(self, x):
         # classes
         class_embeddings, subclass_embeddings = self.class_dropout(self.class_embedding(x['classes'])), self.class_dropout(self.subclass_embedding(x['subclasses']))
-        del x['classes']; del x['subclasses']
-        title_entity_embeddings, abstract_entity_embeddings = x['title_entity_embeddings'], x['abstract_entity_embeddings']
-        del x['title_entity_embeddings']; del x['abstract_entity_embeddings']
+        
+        # todo title_entity_embeddings, abstract_entity_embeddings = x['title_entity_embeddings'], x['abstract_entity_embeddings']
+        #del x['title_entity_embeddings']; del x['abstract_entity_embeddings']
+
         if self.ht_model == 'bert-base-uncased' or self.ht_model.startswith('prajjwal1/bert'):
-            title_reprs = self.title_encoder(**x).pooler_output
+            title_reprs = self.title_encoder(**(x['titles'])).pooler_output
+            abstract_reprs = self.abstract_encoder(**(x['abstracts'])).pooler_output
         elif self.ht_model == 'distilbert-base-uncased':
-            title_reprs = self.title_encoder(**x).last_hidden_state[:,0,:].flatten()
-        catted = torch.cat((title_reprs, class_embeddings, subclass_embeddings, title_entity_embeddings, abstract_entity_embeddings), dim=-1)
+            title_reprs = self.title_encoder(**(x['titles'])).last_hidden_state[:,0,:].flatten()
+            abstract_reprs = self.abstract_encoder(**(x['abstracts'])).last_hidden_state[:,0,:].flatten()
+        catted = torch.cat((title_reprs, abstract_reprs, class_embeddings, subclass_embeddings, title_entity_embeddings, abstract_entity_embeddings), dim=-1)
         return self.distil(self.distil_dropout(catted))
 
 class NewsRec(torch.nn.Module):
@@ -182,11 +186,9 @@ class NewsRec(torch.nn.Module):
 
     def forward(self, x):
         batch_size = x['candidate_mask'].shape[0]
-        labels, candidate_mask, history_mask = x['labels'], x['candidate_mask'], x['history_mask']
-        del x['labels']; del x['candidate_mask']; del x['history_mask']
 
-        his_indices = torch.nonzero(labels == -1, as_tuple = True)[0]
-        impr_indices = torch.nonzero(labels != -1, as_tuple = True)[0]
+        his_indices = torch.nonzero(x['labels'] == -1, as_tuple = True)[0]
+        impr_indices = torch.nonzero(x['labels'] != -1, as_tuple = True)[0]
         
         news_reprs = self.news_encoder(x)
 
@@ -194,9 +196,9 @@ class NewsRec(torch.nn.Module):
         # impr_labels = labels[impr_indices].view(batch_size, -1)
         impr_reprs = news_reprs[impr_indices].view(batch_size, -1, news_reprs.shape[-1])
 
-        self_attended_his_reprs = self.news_MHA(his_reprs, history_mask)[0]
+        self_attended_his_reprs = self.news_MHA(his_reprs, x['history_mask'])[0]
 
-        user_reprs = self.news_pooling(self_attended_his_reprs, history_mask)
+        user_reprs = self.news_pooling(self_attended_his_reprs, x['history_mask'])
 
         # print(user_reprs.shape, impr_reprs.shape) # checked. shapes are correct
 
@@ -204,7 +206,7 @@ class NewsRec(torch.nn.Module):
 
         # print(user_reprs[1], impr_reprs[1][1], scores) # checked. bmm is correct.
 
-        return self.masking(scores, candidate_mask)
+        return self.masking(scores, x['candidate_mask'])
 
 
 if __name__ == '__main__':
