@@ -275,7 +275,7 @@ if __name__ == '__main__':
     collate_fn=valid.collate_fn
     )
 
-    print('checking the class2id matrices:', train._class2id == valid._class2id, train._subclass2id == valid.subclass2id)
+    print('checking the class2id matrices:', train._class2id == valid._class2id, train._subclass2id == valid._subclass2id)
     print('finish loading data', flush = True)
 
     # build the model

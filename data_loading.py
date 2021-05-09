@@ -10,7 +10,7 @@ class MINDDataset(torch.utils.data.Dataset):
     """ initialize the dataset. """
     self._titles, self._abstracts, self._bodies = {}, {}, {} # body data not available at this point
     self._classes = {}
-    self._class2id, self._subclass2id = get_class_dictionaries(large_address)
+    self._class2id, self._subclass2id = get_class_dictionaries(large_address, col_spliter)
     self._entity_embeddings = {}
     self._news_entity_embeddings = {}
     self._dataset = []

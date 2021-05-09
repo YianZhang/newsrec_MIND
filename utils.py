@@ -181,10 +181,10 @@ def get_class_dictionaries(large_address, col_spliter = '\t'):
         with open(data_path, 'r') as f:
             line = f.readline()
             while line != '':
-                _, vert, subvert, _, _, _, _, _ = line.strip("\n").split(self.col_spliter)
-                if vert not in self._class2id:
+                _, vert, subvert, _, _, _, _, _ = line.strip("\n").split(col_spliter)
+                if vert not in class2id:
                     class2id[vert] = len(class2id)
-                if subvert not in self._subclass2id:
+                if subvert not in subclass2id:
                     subclass2id[subvert] = len(subclass2id)
                 line = f.readline()
     
