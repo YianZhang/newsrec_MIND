@@ -128,8 +128,11 @@ class News_encoder(torch.nn.Module):
         self.subclass_embedding = torch.nn.Embedding(news_encoder_parameters['n_subclasses'], news_encoder_parameters['subclass_embedding_dim'])
         self.class_dropout = nn.Dropout(news_encoder_parameters['class_dropout'])
         self.distil_dropout = nn.Dropout(news_encoder_parameters['distil_dropout'])
+        # self.distil = nn.Linear(news_encoder_parameters['class_embedding_dim'] + 
+        #                         news_encoder_parameters['subclass_embedding_dim'] + 
+        #                         self.title_encoder.config.hidden_size, 
+        #                             news_encoder_parameters['news_repr_dim'])
         self.distil = nn.Linear(news_encoder_parameters['class_embedding_dim'] + 
-                                news_encoder_parameters['subclass_embedding_dim'] + 
                                 self.title_encoder.config.hidden_size, 
                                     news_encoder_parameters['news_repr_dim'])
 
@@ -141,7 +144,7 @@ class News_encoder(torch.nn.Module):
             title_reprs = self.title_encoder(**x).pooler_output
         elif self.ht_model == 'distilbert-base-uncased':
             title_reprs = self.title_encoder(**x).last_hidden_state[:,0,:].flatten()
-        catted = torch.cat((title_reprs, class_embeddings, subclass_embeddings), dim=-1)
+        catted = torch.cat((title_reprs, class_embeddings + subclass_embeddings), dim=-1)
         return self.distil(self.distil_dropout(catted))
 
 class NewsRec(torch.nn.Module):
@@ -273,7 +276,7 @@ if __name__ == '__main__':
     print('finish loading data', flush = True)
 
     # build the model
-    news_encoder_parameters = {'n_classes': len(train._class2id), 'n_subclasses': len(train._subclass2id), 'class_embedding_dim': 50, 'subclass_embedding_dim': 30, 'news_repr_dim': 100, 'distil_dropout': 0.1, 'class_dropout': 0}
+    news_encoder_parameters = {'n_classes': len(train._class2id), 'n_subclasses': len(train._subclass2id), 'class_embedding_dim': 50, 'subclass_embedding_dim': 50, 'news_repr_dim': 100, 'distil_dropout': 0.1, 'class_dropout': 0}
     self_attention_hyperparameters['hidden_size'] = news_encoder_parameters['news_repr_dim']
     self_attention_config = Config(self_attention_hyperparameters)
     model = NewsRec(self_attention_config, news_encoder_parameters, args.pretrained_model, args.scorer).to(device)
