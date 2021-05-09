@@ -4,13 +4,15 @@ import random
 from transformers import BertTokenizer, DistilBertTokenizer
 
 class MINDDataset(torch.utils.data.Dataset):
-  def __init__(self, news_file, behavior_file, npratio=4, his_size=50, col_spliter="\t", ID_spliter="%", 
+  def __init__(self, news_file, behavior_file, entity_file, npratio=4, his_size=50, col_spliter="\t", ID_spliter="%", 
   batch_size=1, title_size=50, model='bert-base-uncased', subset='train'):
     """ initialize the dataset. """
     self._titles = {}
     self._classes = {}
     self._class2id = {}
     self._subclass2id = {}
+    self._entity_embeddings = {}
+    self._news_entity_embeddings = {}
     self._behaviors = []
     self._dataset = []
     self._title_reprs = {}
@@ -28,11 +30,22 @@ class MINDDataset(torch.utils.data.Dataset):
     
     self.news_file = news_file
     self.behavior_file = behavior_file
+    self.entity_file = entity_file
 
     if model.startswith('bert') or self.model.startswith('prajjwal1/bert'):
       self.tokenizer = BertTokenizer.from_pretrained(self.model)
     elif model.startswith('distilbert'):
       self.tokenizer = DistilBertTokenizer.from_pretrained(self.model)
+  
+  def init_entities(self):
+    for line in open(self.entity_file, 'r').readlines():
+      line_entries = line.strip().split('\t')
+      entity_id = line_entries[0]
+      try:
+        entity_embedding = [float(line_entries[i]) for i in range(1, len(line_entries))]
+      except:
+        print(line_entries)
+      self._entity_embeddings[entity_id] = entity_embedding
   
   def init_news(self):
     """ get news titles and classes from news_file."""
@@ -42,12 +55,14 @@ class MINDDataset(torch.utils.data.Dataset):
     if self._classes != {}:
       print('Warning: Overwriting the loaded classes')
       self._classes = {}
+    if self._entity_embeddings == {}:
+      self.init_entities()
 
     self._class2id[''], self._subclass2id[''] = 0, 0
     with open(self.news_file, 'r') as f:
       line = f.readline()
       while line != '':
-        nid, vert, subvert, title, ab, url, _, _ = line.strip("\n").split(self.col_spliter)
+        nid, vert, subvert, title, ab, url, t_entities, a_entities = line.strip("\n").split(self.col_spliter)
         if nid in self._titles:
           continue
         self._titles[nid] = title
@@ -56,6 +71,18 @@ class MINDDataset(torch.utils.data.Dataset):
           self._class2id[vert] = len(self._class2id)
         if subvert not in self._subclass2id:
           self._subclass2id[subvert] = len(self._subclass2id)
+        
+        if t_entities.strip() == '[]':
+          t_entity_embedding = torch.zeros(100)
+        else:
+          t_entity_embedding = torch.mean(torch.tensor([self._entity_embeddings[entity['WikidataId']] if entity['WikidataId'] in self._entity_embeddings else [0.0] * 100 for entity in eval(t_entities)]), dim = 0)
+        
+        if a_entities.strip() == '[]':
+          a_entity_embedding = torch.zeros(100)
+        else:
+          a_entity_embedding = torch.mean(torch.tensor([self._entity_embeddings[entity['WikidataId']] if entity['WikidataId'] in self._entity_embeddings else [0.0] * 100 for entity in eval(a_entities)]), dim = 0)
+        self._news_entity_embeddings[nid] = (t_entity_embedding, a_entity_embedding)
+
         line = f.readline()
         
   def newsample(self, news, ratio):
@@ -89,6 +116,7 @@ class MINDDataset(torch.utils.data.Dataset):
         # hid = history # for debugging
         history = ['' if hid == 0 else self._titles[hid] for hid in his_ids]
         history_classes = [('','') if hid == 0 else self._classes[hid] for hid in his_ids]
+        history_entity_embeddings = [(torch.zeros(100), torch.zeros(100)) if hid ==0 else self._news_entity_embeddings[hid] for hid in his_ids]
         history_mask = [1 if his!='' else 0 for his in history]
         pos, neg = [], [] 
         # get the positive and negative ids in this impression
@@ -105,9 +133,10 @@ class MINDDataset(torch.utils.data.Dataset):
             neg_samples = self.newsample(neg, self.npratio)
             candidates = [self._titles[pid]] + [self._titles[nid] if nid!=0 else '' for nid in neg_samples]
             candidate_classes = [self._classes[pid]] + [self._classes[nid] if nid!=0 else ('','') for nid in neg_samples]
+            candidate_entity_embeddings = [self._news_entity_embeddings[pid]] + [self._news_entity_embeddings[nid] if nid!=0 else (torch.zeros(100), torch.zeros(100)) for nid in neg_samples]
             candidate_mask = [1 if candidate!='' else 0 for candidate in candidates]
             #Note: uid not parsed since not used in our vanilla model.
-            instance = {'history': history, 'candidates': candidates, 'history_classes': history_classes, 'candidate_classes': candidate_classes, 'history_mask': history_mask, 'candidate_mask': candidate_mask}
+            instance = {'history': history, 'candidates': candidates, 'history_classes': history_classes, 'candidate_classes': candidate_classes, 'history_mask': history_mask, 'candidate_mask': candidate_mask, 'candidate_entity_embeddings': candidate_entity_embeddings, 'history_entity_embeddings': history_entity_embeddings}
             # instance = {'history': history, 'candidates': candidates, 'history_mask': history_mask, 'candidate_mask': candidate_mask, 'impr_id': impr_id, 'pid': pid, 'nid': neg_samples, 'hid':hid} # for debugging
             self._dataset.append(instance)
         else:
@@ -122,19 +151,25 @@ class MINDDataset(torch.utils.data.Dataset):
       self.init_news()
     indices, reprs = [], []
     i = 0
-    batch_indices, batch_titles, batch_classes, batch_subclasses = [], [], [], []
+    batch_indices, batch_titles, batch_classes, batch_subclasses, batch_title_entity_embeddings, batch_abstract_entity_embeddings = [], [], [], []
     for nid, title in self._titles.items():
       batch_indices.append(nid)
       batch_titles.append(title)
       vert, subvert = self._classes[nid]
       batch_classes.append(self._class2id[vert])
       batch_subclasses.append(self._subclass2id[subvert])
+      title_entity_embedding, abstract_entity_embedding = self._news_entity_embeddings[nid]
+      batch_title_entity_embeddings.append(title_entity_embedding)
+      batch_abstract_entity_embeddings.append(abstract_entity_embedding)
+      
       i += 1
       if i % batch_size == 0:
         #print('batch', i//batch_size, flush=True)
         encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest") #tokenize
         encoder_input['classes'] = torch.LongTensor(batch_classes)
         encoder_input['subclasses'] = torch.LongTensor(batch_subclasses)
+        encoder_input['title_entity_embeddings'] = torch.stack(title_entity_embeddings)
+        encoder_input['abstract_entity_embeddings'] = torch.stack(abstract_entity_embeddings)
         batch_reprs = news_encoder(encoder_input.to(device)).data.to('cpu')
         # if self.model == 'bert-base-uncased' or self.model.startswith('prajjwal1/bert'):
         #   batch_reprs = news_encoder(**encoder_input).pooler_output.data.to('cpu') #forward
@@ -144,12 +179,14 @@ class MINDDataset(torch.utils.data.Dataset):
         indices.extend(batch_indices)
         reprs.extend(batch_reprs)
         #print(len(reprs), len(reprs[0]))
-        batch_indices, batch_titles, batch_classes, batch_subclasses = [], [], [], [] # clear
+        batch_indices, batch_titles, batch_classes, batch_subclasses, batch_title_entity_embeddings, batch_abstract_embeddings = [], [], [], [] # clear
 
     # forward and extend the rest titles
     encoder_input = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest") #tokenize
     encoder_input['classes'] = torch.LongTensor(batch_classes)
     encoder_input['subclasses'] = torch.LongTensor(batch_subclasses)
+    encoder_input['title_entity_embeddings'] = torch.stack(title_entity_embeddings)
+    encoder_input['abstract_entity_embeddings'] = torch.stack(abstract_entity_embeddings)
     batch_reprs = news_encoder(encoder_input.to(device)).data.to('cpu')
     
     indices.extend(batch_indices)
@@ -228,6 +265,7 @@ class MINDDataset(torch.utils.data.Dataset):
     #TODO: test set
     sentences = []
     classes = []
+    news_entity_embeddings = []
     # impr_ids = [] # for debugging
     # pids = [] # for debugging
     # nids = [] # for debugging
@@ -235,6 +273,7 @@ class MINDDataset(torch.utils.data.Dataset):
     for instance in batch:
       sentences += instance['candidates']+instance['history']
       classes += instance['candidate_classes']+instance['history_classes']
+      news_entity_embeddings += instance['candidate_entity_embeddings'] + instance['history_entity_embeddings']
       # impr_ids.append(instance['impr_id']) # for debugging
       # pids.append(instance['pid']) # for debugging
       # nids.append(instance['nid']) # for debugging
@@ -251,6 +290,8 @@ class MINDDataset(torch.utils.data.Dataset):
     # print(classes)
     output['classes'] = torch.LongTensor([ self._class2id[vert] for vert, _ in classes])
     output['subclasses'] = torch.LongTensor([ self._subclass2id[subvert] for _, subvert in classes])
+    output['title_entity_embeddings'] = torch.stack([ t_e_e for t_e_e, _ in news_entity_embeddings])
+    output['abstract_entity_embeddings'] = torch.stack([ a_e_e for _, a_e_e in news_entity_embeddings])
     return output
 
 
@@ -259,7 +300,7 @@ if __name__ == '__main__':
   from torch.utils.data import RandomSampler
   from torch.utils.data import DataLoader
 
-  my_ds = MINDDataset('demo/train/news.tsv', 'demo/train/behaviors.tsv',npratio=2, his_size=2, batch_size=2)
+  my_ds = MINDDataset('demo/train/news.tsv', 'demo/train/behaviors.tsv', 'demo/train/entity_embedding.vec', npratio=2, his_size=2, batch_size=2)
   my_ds.load_data()
 
   train_sampler = RandomSampler(my_ds)
