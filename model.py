@@ -298,7 +298,7 @@ if __name__ == '__main__':
     # num_warmup_steps = args.warmup_steps # bert 10,000 # I used 3000 for demo
     checkpointing_freq = 250 # for demo I used 200
 
-    valid_metrics_ratio = (0.3, 1)
+    valid_metrics_ratio = (0.5, 1)
     if args.datasize == 'demo':
         valid_loss_ratio = 0.02 # demo # out of 716 * 16 # for demo I used 0.02
         MAX_EPOCHS = 7
@@ -308,7 +308,7 @@ if __name__ == '__main__':
     elif args.datasize == 'large':
         valid_loss_ratio = 0.0005 
         MAX_EPOCHS = 1
-        valid_metrics_ratio = (0.06, 0.2)
+        valid_metrics_ratio = (0.1, 0.2)
     
 
     num_train_steps = MAX_EPOCHS*(len(train_dataloader) - 1) # to be further checked
