@@ -148,6 +148,9 @@ class News_encoder(torch.nn.Module):
         elif self.ht_model == 'distilbert-base-uncased':
             title_reprs = self.title_encoder(**(x['titles'])).last_hidden_state[:,0,:].flatten()
             abstract_reprs = self.abstract_encoder(**(x['abstracts'])).last_hidden_state[:,0,:].flatten()
+        # debuggin:
+        for tensor in (title_reprs, abstract_reprs, class_embeddings, subclass_embeddings, x['title_entity_embeddings'], x['abstract_entity_embeddings']):
+            print(tensor.shape)
         catted = torch.cat((title_reprs, abstract_reprs, class_embeddings, subclass_embeddings, x['title_entity_embeddings'], x['abstract_entity_embeddings']), dim=-1)
         return self.distil(self.distil_dropout(catted))
 
@@ -192,9 +195,13 @@ class NewsRec(torch.nn.Module):
         
         news_reprs = self.news_encoder(x)
 
-        his_reprs = news_reprs[his_indices].view(batch_size, -1, news_reprs.shape[-1])
+        # his_reprs = news_reprs[his_indices].view(batch_size, -1, news_reprs.shape[-1])
+        his_reprs = news_reprs[his_indices]
+        
         # impr_labels = labels[impr_indices].view(batch_size, -1)
-        impr_reprs = news_reprs[impr_indices].view(batch_size, -1, news_reprs.shape[-1])
+        
+        # impr_reprs = news_reprs[impr_indices].view(batch_size, -1, news_reprs.shape[-1])
+        impr_reprs = news_reprs[impr_indices]
 
         self_attended_his_reprs = self.news_MHA(his_reprs, x['history_mask'])[0]
 
