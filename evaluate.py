@@ -1,7 +1,7 @@
 from utils import cal_metric
 
 def evaluate(dataset, model, ratio=1):
-    dataset.encode_all_titles(model.news_encoder)
+    dataset.encode_all_news(model.news_encoder)
     print('finish encoding all the titles', flush = True)
     dataset.load_data_for_evaluation()
     labels, preds = dataset.get_predictions(model, ratio)

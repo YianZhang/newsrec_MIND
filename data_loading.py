@@ -115,7 +115,7 @@ class MINDDataset(torch.utils.data.Dataset):
         history_abstracts = ['' if hid == 0 else self._abstracts[hid] for hid in his_ids]
         history_classes = [('','') if hid == 0 else self._classes[hid] for hid in his_ids]
         history_entity_embeddings = [(torch.tensor(self._entity_embeddings['average']), torch.tensor(self._entity_embeddings['average'])) if hid == 0 else self._news_entity_embeddings[hid] for hid in his_ids]
-        history_mask = [1 if his!='' else 0 for his in history]
+        history_mask = [1 if his!='' else 0 for his in history_titles]
         pos, neg = [], [] 
         # get the positive and negative ids in this impression
         if self.subset == 'train' or 'valid':
@@ -135,7 +135,7 @@ class MINDDataset(torch.utils.data.Dataset):
             candidate_entity_embeddings = [self._news_entity_embeddings[pid]] + [self._news_entity_embeddings[nid] if nid!=0 else (torch.tensor(self._entity_embeddings['average']), torch.tensor(self._entity_embeddings['average'])) for nid in neg_samples]
             candidate_mask = [1 if candidate!='' else 0 for candidate in candidate_titles]
             #Note: uid not parsed since not used in our vanilla model.
-            instance = {'history': history, 'candidate_titles': candidate_titles, 'candidate_abstracts': candidate_abstracts, 'history_classes': history_classes, 'candidate_classes': candidate_classes, 'history_mask': history_mask, 'candidate_mask': candidate_mask, 'candidate_entity_embeddings': candidate_entity_embeddings, 'history_entity_embeddings': history_entity_embeddings}
+            instance = {'history_titles': history_titles, 'history_abstracts': history_abstracts, 'candidate_titles': candidate_titles, 'candidate_abstracts': candidate_abstracts, 'history_classes': history_classes, 'candidate_classes': candidate_classes, 'history_mask': history_mask, 'candidate_mask': candidate_mask, 'candidate_entity_embeddings': candidate_entity_embeddings, 'history_entity_embeddings': history_entity_embeddings}
             # instance = {'history': history, 'candidates': candidates, 'history_mask': history_mask, 'candidate_mask': candidate_mask, 'impr_id': impr_id, 'pid': pid, 'nid': neg_samples, 'hid':hid} # for debugging
             self._dataset.append(instance)
         else:
@@ -167,12 +167,16 @@ class MINDDataset(torch.utils.data.Dataset):
         #print('batch', i//batch_size, flush=True)
         encoder_input = {}
         encoder_input['titles'] = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest") #tokenize
-        encoder_input['abstracts'] = self.tokenizer(batch_abstracts, return_tensors="pt", padding = "longest") #tokenize
+        encoder_input['abstracts'] = self.tokenizer(batch_abstracts, return_tensors="pt", padding = "max_length", truncation = True, max_length=128) #tokenize
         encoder_input['classes'] = torch.LongTensor(batch_classes)
         encoder_input['subclasses'] = torch.LongTensor(batch_subclasses)
         encoder_input['title_entity_embeddings'] = torch.stack(batch_title_entity_embeddings)
         encoder_input['abstract_entity_embeddings'] = torch.stack(batch_abstract_entity_embeddings)
-        batch_reprs = news_encoder(encoder_input.to(device)).data.to('cpu')
+
+        for key in encoder_input:
+            encoder_input[key] = encoder_input[key].to(device)
+        
+        batch_reprs = news_encoder(encoder_input).data.to('cpu')
         # if self.model == 'bert-base-uncased' or self.model.startswith('prajjwal1/bert'):
         #   batch_reprs = news_encoder(**encoder_input).pooler_output.data.to('cpu') #forward
         # elif self.model == 'distilbert-base-uncased':
@@ -186,13 +190,17 @@ class MINDDataset(torch.utils.data.Dataset):
     # forward and extend the rest titles
     encoder_input = {}
     encoder_input['titles'] = self.tokenizer(batch_titles, return_tensors="pt", padding = "longest") #tokenize
-    encoder_input['abstracts'] = self.tokenizer(batch_abstracts, return_tensors="pt", padding = "longest") #tokenize
+    encoder_input['abstracts'] = self.tokenizer(batch_abstracts, return_tensors="pt", padding = "max_length", truncation = True, max_length=128) #tokenize
     encoder_input['classes'] = torch.LongTensor(batch_classes)
     encoder_input['subclasses'] = torch.LongTensor(batch_subclasses)
     encoder_input['title_entity_embeddings'] = torch.stack(batch_title_entity_embeddings)
     encoder_input['abstract_entity_embeddings'] = torch.stack(batch_abstract_entity_embeddings)
-    batch_reprs = news_encoder(encoder_input.to(device)).data.to('cpu')
     
+    for key in encoder_input:
+        encoder_input[key] = encoder_input[key].to(device)
+
+    batch_reprs = news_encoder(encoder_input).data.to('cpu')
+
     indices.extend(batch_indices)
     reprs.extend(batch_reprs)
     self._news_reprs = dict(zip(indices, reprs))
@@ -249,7 +257,7 @@ class MINDDataset(torch.utils.data.Dataset):
       labels, preds = [], []  
       for instance in self._processed_impressions[:int(ratio*len(self._processed_impressions))]:
         instance['candidate_reprs'] = torch.stack([self._news_reprs[nid] for nid in instance['candidates']]).to(device)
-        instance['history_reprs'] = torch.stack([torch.zeros(model.news_encoder_parameters['news_repr_dim']) if hid == 0 else self._title_reprs[hid] for hid in instance['history_ids']]).to(device) #title_todo
+        instance['history_reprs'] = torch.stack([torch.zeros(model.news_encoder_parameters['news_repr_dim']) if hid == 0 else self._news_reprs[hid] for hid in instance['history_ids']]).to(device)
         instance['history_mask'] = torch.tensor(instance['history_mask']).to(device)
         labels.append(np.array(instance['labels']))
         preds.append(model.predict(instance).numpy())
@@ -284,7 +292,7 @@ class MINDDataset(torch.utils.data.Dataset):
       # nids.append(instance['nid']) # for debugging
       # hids.append(instance['hid']) # for debugging
     title_encodings = self.tokenizer(titles, return_tensors="pt", padding = "longest")
-    abstract_encodings = self.tokenizer(abstracts, return_tensors="pt", padding = "longest")
+    abstract_encodings = self.tokenizer(abstracts, return_tensors="pt", padding = "max_length", truncation = True, max_length=128)
     # output['sentences'] = sentences # for debugging
     # output['impr_ids'] = impr_ids # for debugging
     # output['pids'] = pids # for debugging
