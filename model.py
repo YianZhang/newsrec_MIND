@@ -227,22 +227,22 @@ if __name__ == '__main__':
     parser.add_argument('--scorer', default = 'dot_product')
     args = parser.parse_args()
 
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('Device: ', device, flush = True)
 
     # model HPs
     # position embedding related HPs are useless.
     if args.pretrained_model == 'bert-base-uncased':
-        BATCH_SIZE = 3 # 6 works for demo, not for large
+        BATCH_SIZE = 3 * torch.cuda.device_count() # 6 works for demo, not for large
         # HIDDEN_SIZE = 768
     elif args.pretrained_model == 'distilbert-base-uncased':
-        BATCH_SIZE = 8 # 12 does not work for small
+        BATCH_SIZE = 8 * torch.cuda.device_count()# 12 does not work for small
         # HIDDEN_SIZE = 768
     elif args.pretrained_model == 'prajjwal1/bert-tiny':
-        BATCH_SIZE = 24
+        BATCH_SIZE = 24 * torch.cuda.device_count()
         # HIDDEN_SIZE = 128
     elif args.pretrained_model == 'prajjwal1/bert-mini':
-        BATCH_SIZE = 16
+        BATCH_SIZE = 16 * torch.cuda.device_count()
         # HIDDEN_SIZE = 256
         
     self_attention_hyperparameters = {'num_attention_heads' : 20, 'attention_probs_dropout_prob': args.attn_dropout, 'max_position_embeddings': 4, 'is_decoder': False, 'position_embedding_type' : None,}
@@ -283,6 +283,9 @@ if __name__ == '__main__':
     self_attention_hyperparameters['hidden_size'] = news_encoder_parameters['news_repr_dim']
     self_attention_config = Config(self_attention_hyperparameters)
     model = NewsRec(self_attention_config, news_encoder_parameters, args.pretrained_model, args.scorer).to(device)
+    if torch.cuda.device_count() > 1:
+        print("Let's use", torch.cuda.device_count(), "GPUs!")
+        model = nn.DataParallel(model)
 
     print('finish building the model', flush = True)
 
