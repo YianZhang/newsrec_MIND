@@ -148,7 +148,7 @@ class News_encoder(torch.nn.Module):
         elif self.ht_model == 'distilbert-base-uncased':
             title_reprs = self.title_encoder(**(x['titles'])).last_hidden_state[:,0,:].flatten()
             abstract_reprs = self.abstract_encoder(**(x['abstracts'])).last_hidden_state[:,0,:].flatten()
-        catted = torch.cat((title_reprs, abstract_reprs, class_embeddings, subclass_embeddings, title_entity_embeddings, abstract_entity_embeddings), dim=-1)
+        catted = torch.cat((title_reprs, abstract_reprs, class_embeddings, subclass_embeddings, x['title_entity_embeddings'], x['abstract_entity_embeddings']), dim=-1)
         return self.distil(self.distil_dropout(catted))
 
 class NewsRec(torch.nn.Module):
@@ -342,7 +342,9 @@ if __name__ == '__main__':
                 continue
             # impr_indices = torch.nonzero(data_batch["labels"] != -1, as_tuple = True)[0] # must retrieve the labels first, because it is deleted by the forward func
             # impr_labels = data_batch["labels"][impr_indices].view(BATCH_SIZE, -1)
-            data_batch = data_batch.to(device)
+            for key in data_batch:
+                data_batch[key] = data_batch[key].to(device)
+
             y_pred = model(data_batch)
             loss = criterion(y_pred, labels)
             total_loss += loss.item()
@@ -366,7 +368,8 @@ if __name__ == '__main__':
                 for batch_id, data_batch in enumerate(valid_dataloader):
                     if batch_id == int(len(valid_dataloader) * valid_loss_ratio):
                         break
-                    data_batch = data_batch.to(device)
+                    for key in data_batch:
+                        data_batch[key] = data_batch[key].to(device)
                     y_pred = model(data_batch)
                     loss = criterion(y_pred, labels)
                     valid_loss += loss.item()
@@ -399,7 +402,8 @@ if __name__ == '__main__':
         for batch_id, data_batch in enumerate(valid_dataloader):
             if batch_id == int(len(valid_dataloader) * 0.1):
                 break
-            data_batch = data_batch.to(device)
+            for key in data_batch:
+                data_batch[key] = data_batch[key].to(device)
             y_pred = model(data_batch)
             loss = criterion(y_pred, labels)
             valid_loss += loss.item()
