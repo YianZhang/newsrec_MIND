@@ -48,6 +48,7 @@ class MySelfAttention(BertSelfAttention):
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
         if attention_mask is not None:
             # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
+            print(attention_scores.shape, self.convert_attention_mask(attention_mask).shape)
             attention_scores = attention_scores + self.convert_attention_mask(attention_mask)
 
         # Normalize the attention scores to probabilities.
@@ -143,9 +144,19 @@ class News_encoder(torch.nn.Module):
         #del x['title_entity_embeddings']; del x['abstract_entity_embeddings']
 
         if self.ht_model == 'bert-base-uncased' or self.ht_model.startswith('prajjwal1/bert'):
-            title_reprs = self.title_encoder(**(x['titles'])).pooler_output
-            abstract_reprs = self.abstract_encoder(**(x['abstracts'])).pooler_output
+            title_inputs= x['titles']
+            for key, val in title_inputs.items():
+                shape = val.shape
+                title_inputs[key] = val.view((-1, shape[-1]))
+            title_reprs = self.title_encoder(**(x['titles'])).pooler_output.view((shape[0],shape[1],-1))
+
+            abstract_inputs= x['abstracts']
+            for key, val in abstract_inputs.items():
+                shape = val.shape
+                abstract_inputs[key] = val.view((-1, shape[-1]))
+            abstract_reprs = self.abstract_encoder(**(x['abstracts'])).pooler_output.view((shape[0], shape[1], -1))
         elif self.ht_model == 'distilbert-base-uncased':
+            # not implemented for distilbert
             title_reprs = self.title_encoder(**(x['titles'])).last_hidden_state[:,0,:].flatten()
             abstract_reprs = self.abstract_encoder(**(x['abstracts'])).last_hidden_state[:,0,:].flatten()
         # debuggin:
