@@ -244,8 +244,13 @@ class MINDDataset(torch.utils.data.Dataset):
           instance = {'history_ids': history, 'history_mask': history_mask, 'candidates': ids, 'labels': labels}
           #instance = {'history_reprs': history_reprs, 'history_mask': history_mask, 'candidate_reprs': candidate_reprs, 'labels': labels}
           self._processed_impressions.append(instance)
-        else:
-          pass #test set: TODO
+        else: # test set
+          ids.extend(impr.split())
+          
+          # dummy labels?
+          
+          instance = {'history_ids': history, 'history_mask': history_mask, 'candidates': ids}
+          self._processed_impressions.append(instance)
 
         line = f.readline()
 
@@ -262,8 +267,14 @@ class MINDDataset(torch.utils.data.Dataset):
         labels.append(np.array(instance['labels']))
         preds.append(model.predict(instance).numpy())
       return labels, preds
-    else:
-      pass
+    else: # test
+      preds = []  
+      for instance in self._processed_impressions[:int(ratio*len(self._processed_impressions))]:
+        instance['candidate_reprs'] = torch.stack([self._news_reprs[nid] for nid in instance['candidates']]).to(device)
+        instance['history_reprs'] = torch.stack([torch.zeros(model.news_encoder_parameters['news_repr_dim']) if hid == 0 else self._news_reprs[hid] for hid in instance['history_ids']]).to(device)
+        instance['history_mask'] = torch.tensor(instance['history_mask']).to(device)
+        preds.append(model.predict(instance).numpy())
+      return preds
   
   def __len__(self):
     return len(self._dataset)
