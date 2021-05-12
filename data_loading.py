@@ -285,21 +285,14 @@ class MINDDataset(torch.utils.data.Dataset):
     for instance in batch:
       titles += instance['candidate_titles']+instance['history_titles']
       abstracts += instance['candidate_abstracts']+instance['history_abstracts']
-      classes.append(instance['candidate_classes']+instance['history_classes'])
-      news_entity_embeddings.append(instance['candidate_entity_embeddings'] + instance['history_entity_embeddings'])
+      classes += instance['candidate_classes']+instance['history_classes']
+      news_entity_embeddings += instance['candidate_entity_embeddings'] + instance['history_entity_embeddings']
       # impr_ids.append(instance['impr_id']) # for debugging
       # pids.append(instance['pid']) # for debugging
       # nids.append(instance['nid']) # for debugging
       # hids.append(instance['hid']) # for debugging
-
     title_encodings = self.tokenizer(titles, return_tensors="pt", padding = "longest")
-    for key in title_encodings:
-      dim1, dim2 = title_encodings[key].shape
-      title_encodings[key] = title_encodings[key].view(len(batch), -1, dim2)
     abstract_encodings = self.tokenizer(abstracts, return_tensors="pt", padding = "max_length", truncation = True, max_length=128)
-    for key in abstract_encodings:
-      dim1, dim2 = abstract_encodings[key].shape
-      abstract_encodings[key] = abstract_encodings[key].view(len(batch), -1, dim2)
     # output['sentences'] = sentences # for debugging
     # output['impr_ids'] = impr_ids # for debugging
     # output['pids'] = pids # for debugging
@@ -307,14 +300,14 @@ class MINDDataset(torch.utils.data.Dataset):
     # output['hids'] = hids # for debugging
     output['titles'] = title_encodings
     output['abstracts'] = abstract_encodings
-    output['labels'] = torch.Tensor([([1] + [0] * self.npratio + [-1] * self.his_size) for i in range(len(batch))])
+    output['labels'] = torch.Tensor(([1] + [0] * self.npratio + [-1] * self.his_size) * len(batch))
     output['candidate_mask'] = torch.Tensor([instance['candidate_mask'] for instance in batch])
     output['history_mask'] = torch.Tensor([instance['history_mask'] for instance in batch])
     # print(classes)
-    output['classes'] = torch.LongTensor([ [self._class2id[vert] for vert, _ in instance] for instance in classes])
-    output['subclasses'] = torch.LongTensor([ [self._subclass2id[subvert] for _, subvert in instance] for instance in classes])
-    output['title_entity_embeddings'] = torch.stack([ torch.stack([t_e_e for t_e_e, _ in instance]) for instance in news_entity_embeddings])
-    output['abstract_entity_embeddings'] = torch.stack([ torch.stack([a_e_e for _, a_e_e in instance]) for instance in news_entity_embeddings])
+    output['classes'] = torch.LongTensor([ self._class2id[vert] for vert, _ in classes])
+    output['subclasses'] = torch.LongTensor([ self._subclass2id[subvert] for _, subvert in classes])
+    output['title_entity_embeddings'] = torch.stack([ t_e_e for t_e_e, _ in news_entity_embeddings])
+    output['abstract_entity_embeddings'] = torch.stack([ a_e_e for _, a_e_e in news_entity_embeddings])
     return output
 
 
@@ -323,7 +316,7 @@ if __name__ == '__main__':
   from torch.utils.data import RandomSampler
   from torch.utils.data import DataLoader
 
-  my_ds = MINDDataset('demo/train/news.tsv', 'demo/train/behaviors.tsv', 'all_embeddings.vec', 'demo', npratio=2, his_size=2, batch_size=2)
+  my_ds = MINDDataset('demo/train/news.tsv', 'demo/train/behaviors.tsv', 'all_embeddings.vec', npratio=2, his_size=2, batch_size=2)
   my_ds.load_data()
 
   train_sampler = RandomSampler(my_ds)
