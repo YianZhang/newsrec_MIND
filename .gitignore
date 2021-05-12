@@ -7,3 +7,4 @@ utils/
 *.sbatch
 *.out
 __pycache__/
+*.swp

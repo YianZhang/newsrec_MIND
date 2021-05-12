@@ -146,8 +146,8 @@ class News_encoder(torch.nn.Module):
             title_reprs = self.title_encoder(**(x['titles'])).pooler_output
             abstract_reprs = self.abstract_encoder(**(x['abstracts'])).pooler_output
         elif self.ht_model == 'distilbert-base-uncased':
-            title_reprs = self.title_encoder(**(x['titles'])).last_hidden_state[:,0,:].flatten()
-            abstract_reprs = self.abstract_encoder(**(x['abstracts'])).last_hidden_state[:,0,:].flatten()
+            title_reprs = self.title_encoder(**(x['titles'])).last_hidden_state[:,0,:].squeeze(1)
+            abstract_reprs = self.abstract_encoder(**(x['abstracts'])).last_hidden_state[:,0,:].squeeze(1)
         catted = torch.cat((title_reprs, abstract_reprs, class_embeddings, subclass_embeddings, x['title_entity_embeddings'], x['abstract_entity_embeddings']), dim=-1)
         return self.distil(self.distil_dropout(catted))
 
@@ -236,7 +236,7 @@ if __name__ == '__main__':
         BATCH_SIZE = 3 * torch.cuda.device_count() # 6 works for demo, not for large
         # HIDDEN_SIZE = 768
     elif args.pretrained_model == 'distilbert-base-uncased':
-        BATCH_SIZE = 8 * torch.cuda.device_count()# 12 does not work for small
+        BATCH_SIZE = 2 * torch.cuda.device_count()# 12 does not work for small
         # HIDDEN_SIZE = 768
     elif args.pretrained_model == 'prajjwal1/bert-tiny':
         BATCH_SIZE = 24 * torch.cuda.device_count()
@@ -279,8 +279,9 @@ if __name__ == '__main__':
     print('finish loading data', flush = True)
 
     # build the model
-    news_encoder_parameters = {'n_classes': len(train._class2id), 'n_subclasses': len(train._subclass2id), 'class_embedding_dim': 50, 'subclass_embedding_dim': 30, 'news_repr_dim': 100, 'distil_dropout': 0.1, 'class_dropout': 0, 'entity_embedding_dim': 100}
+    news_encoder_parameters = {'n_classes': len(train._class2id), 'n_subclasses': len(train._subclass2id), 'class_embedding_dim': 50, 'subclass_embedding_dim': 30, 'news_repr_dim': 400, 'distil_dropout': 0.1, 'class_dropout': 0, 'entity_embedding_dim': 100}
     self_attention_hyperparameters['hidden_size'] = news_encoder_parameters['news_repr_dim']
+    print(self_attention_hyperparameters)
     self_attention_config = Config(self_attention_hyperparameters)
     model = NewsRec(self_attention_config, news_encoder_parameters, args.pretrained_model, args.scorer).to(device)
     if torch.cuda.device_count() > 1:
@@ -316,6 +317,7 @@ if __name__ == '__main__':
 
     num_train_steps = MAX_EPOCHS*(len(train_dataloader) - 1) # to be further checked
     num_warmup_steps = num_train_steps * args.warmup_ratio
+    num_train_steps, num_warmup_steps = 59088, 177 # ad hoc
     print("num_train_steps: {}, num_warmup_steps: {}".format(num_train_steps, num_warmup_steps))
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=0.01)
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps, num_train_steps)
