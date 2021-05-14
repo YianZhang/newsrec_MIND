@@ -1,6 +1,7 @@
 from utils import cal_metric
 
 def evaluate(dataset, model, ratio=1, subset='valid'):
+    model.eval()
     dataset.encode_all_news(model.news_encoder)
     print('finish encoding all the titles', flush = True)
     dataset.load_data_for_evaluation()
@@ -10,9 +11,13 @@ def evaluate(dataset, model, ratio=1, subset='valid'):
         metrics = ['group_auc', 'mean_mrr', 'ndcg@5', 'ndcg@10']
         return cal_metric(labels, preds, metrics)
     else: # test
+        '''
         preds = dataset.get_predictions(model, ratio)
         with open('predictions.txt','w') as f:
-            f.write(str(preds))
+            for impression in preds:
+                f.write(str(impression) + '\n')
+        '''
+        dataset.get_predictions(model, ratio)
 
     #print(labels[:5], preds[:5])
 
@@ -20,6 +25,7 @@ def evaluate(dataset, model, ratio=1, subset='valid'):
 
 if __name__ == '__main__':
     import torch
+    import random
 
     torch.manual_seed(42) # for reproducibility
     random.seed(42) # for reproducibility
@@ -45,24 +51,21 @@ if __name__ == '__main__':
     from torch.utils.data import DataLoader
     from utils import Config, save_checkpoint, load_checkpoint
     from os import path
+    
+    from model import NewsRec
 
     DATA_SIZE = args.datasize # demo, small, large
+    
+    BATCH_SIZE = 1 # dummy
 
-    test = MINDDataset(path.join(DATA_SIZE,'valid/news.tsv'), path.join(DATA_SIZE,'valid/behaviors.tsv'), 'all_embeddings.vec', 'large', batch_size=BATCH_SIZE, model=args.pretrained_model, subset='valid')
+    test = MINDDataset(path.join(DATA_SIZE,'test/news.tsv'), path.join(DATA_SIZE,'test/behaviors.tsv'), 'all_embeddings.vec', 'large', batch_size=BATCH_SIZE, model=args.pretrained_model, subset='test')
     test.init_news()
-    test_sampler = RandomSampler(valid)
-    test_dataloader = DataLoader(
-    test,
-    sampler=test_sampler,
-    batch_size=test.batch_size,
-    collate_fn=test.collate_fn
-    )
 
-    print('checking the class2id matrices:', train._class2id == valid._class2id, train._subclass2id == valid._subclass2id)
     print('finish loading data', flush = True)
 
     # build the model
-    news_encoder_parameters = {'n_classes': len(train._class2id), 'n_subclasses': len(train._subclass2id), 'class_embedding_dim': 50, 'subclass_embedding_dim': 30, 'news_repr_dim': 400, 'distil_dropout': 0.1, 'class_dropout': 0, 'entity_embedding_dim': 100}
+    # news_encoder_parameters = {'n_classes': len(train._class2id), 'n_subclasses': len(train._subclass2id), 'class_embedding_dim': 50, 'subclass_embedding_dim': 30, 'news_repr_dim': 400, 'distil_dropout': 0.1, 'class_dropout': 0, 'entity_embedding_dim': 100}
+    news_encoder_parameters = {'n_classes': 19, 'n_subclasses': 294, 'class_embedding_dim': 50, 'subclass_embedding_dim': 30, 'news_repr_dim': 400, 'distil_dropout': 0.1, 'class_dropout': 0, 'entity_embedding_dim': 100}
     self_attention_hyperparameters['hidden_size'] = news_encoder_parameters['news_repr_dim']
     print(self_attention_hyperparameters)
     self_attention_config = Config(self_attention_hyperparameters)
@@ -80,4 +83,4 @@ if __name__ == '__main__':
     except:
         print('WARNING: failed to load any checkpoints.', flush = True)
 
-    evaluate(valid, model, 1, subset='test')
+    evaluate(test, model, 1, subset='test')

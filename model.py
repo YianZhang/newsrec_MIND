@@ -280,6 +280,7 @@ if __name__ == '__main__':
 
     # build the model
     news_encoder_parameters = {'n_classes': len(train._class2id), 'n_subclasses': len(train._subclass2id), 'class_embedding_dim': 50, 'subclass_embedding_dim': 30, 'news_repr_dim': 400, 'distil_dropout': 0.1, 'class_dropout': 0, 'entity_embedding_dim': 100}
+    print(news_encoder_parameters)
     self_attention_hyperparameters['hidden_size'] = news_encoder_parameters['news_repr_dim']
     print(self_attention_hyperparameters)
     self_attention_config = Config(self_attention_hyperparameters)
@@ -318,6 +319,8 @@ if __name__ == '__main__':
     num_train_steps = MAX_EPOCHS*(len(train_dataloader) - 1) # to be further checked
     num_warmup_steps = num_train_steps * args.warmup_ratio
     num_train_steps, num_warmup_steps = 59088, 177 # ad hoc
+    #num_train_steps, num_warmup_steps = 29544, 177 # ad hoc
+    # num_train_steps, num_warmup_steps = 118176, 177 # ad hoc
     print("num_train_steps: {}, num_warmup_steps: {}".format(num_train_steps, num_warmup_steps))
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=0.01)
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps, num_train_steps)

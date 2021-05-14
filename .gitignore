@@ -8,3 +8,4 @@ utils/
 *.out
 __pycache__/
 *.swp
+*.txt

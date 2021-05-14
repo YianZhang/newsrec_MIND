@@ -268,13 +268,28 @@ class MINDDataset(torch.utils.data.Dataset):
         preds.append(model.predict(instance).numpy())
       return labels, preds
     else: # test
-      preds = []  
-      for instance in self._processed_impressions[:int(ratio*len(self._processed_impressions))]:
-        instance['candidate_reprs'] = torch.stack([self._news_reprs[nid] for nid in instance['candidates']]).to(device)
-        instance['history_reprs'] = torch.stack([torch.zeros(model.news_encoder_parameters['news_repr_dim']) if hid == 0 else self._news_reprs[hid] for hid in instance['history_ids']]).to(device)
-        instance['history_mask'] = torch.tensor(instance['history_mask']).to(device)
-        preds.append(model.predict(instance).numpy())
-      return preds
+      preds = []
+      i = 0
+      with open('predictions.txt','w') as f:
+        for instance in self._processed_impressions[:int(ratio*len(self._processed_impressions))]:
+            instance['candidate_reprs'] = torch.stack([self._news_reprs[nid] for nid in instance['candidates']]).to(device)
+            instance['history_reprs'] = torch.stack([torch.zeros(model.news_encoder_parameters['news_repr_dim']) if hid == 0 else self._news_reprs[hid] for hid in instance['history_ids']]).to(device)
+            instance['history_mask'] = torch.tensor(instance['history_mask']).to(device)
+            '''
+            preds.append(model.predict(instance).numpy())
+            i += 1
+            if i % 1000 == 0:
+                print(i, flush = True)
+            '''
+            pred = model.predict(instance).data.to('cpu').numpy()
+            keys = list(instance.keys())
+            for key in keys:
+                del instance[key]
+            f.write(str(pred) + '\n')
+            torch.cuda.empty_cache()
+      #return preds
+      
+
   
   def __len__(self):
     return len(self._dataset)
